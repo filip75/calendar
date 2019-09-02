@@ -1,6 +1,7 @@
 from django.contrib.auth.forms import UserCreationForm
-from django.forms import ChoiceField, EmailField, RadioSelect
+from django.forms import CharField, ChoiceField, EmailField, RadioSelect
 
+from training_calendar.forms import MultipleForm
 from users.models import User, UserType
 
 USER_TYPE_CHOICES = [(UserType.RUNNER, 'zawodnik'), (UserType.COACH, 'trener')]
@@ -8,7 +9,7 @@ USER_TYPE_CHOICES = [(UserType.RUNNER, 'zawodnik'), (UserType.COACH, 'trener')]
 
 class UserRegisterForm(UserCreationForm):
     email = EmailField()
-    user_type = ChoiceField(choices=USER_TYPE_CHOICES, widget=RadioSelect)
+    user_type = ChoiceField(choices=USER_TYPE_CHOICES, widget=RadioSelect, label='Typ użytkownika')
 
     class Meta:
         model = User
@@ -25,3 +26,8 @@ class UserRegisterForm(UserCreationForm):
         return user
 
 
+class UserInviteForm(MultipleForm):
+    coach = CharField(max_length=100)
+
+    def is_valid(self):
+        return False

@@ -4,11 +4,14 @@
     <form method="post">
         {% csrf_token %}
         <fieldset class="form-group">
-            <legend class="border-bottom mb-4">Rejestracja</legend>
+            <legend class="border-bottom mb-4">Logowanie</legend>
             {{ form|crispy }}
         </fieldset>
         <div class="form-group">
-            <button class="btn btn-outline-info" type="submit">Prześlij</button>
+            <button class="btn btn-outline-info" type="submit">Zaloguj</button>
         </div>
     </form>
+    <div class="mt-3">
+        <small><a href="{% url 'users-signup' %}">Utwórz konto</a></small>
+    </div>
 {% endblock content %}
