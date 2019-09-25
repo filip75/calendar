@@ -1,28 +1,36 @@
 import pytest
-from django.test import Client
 
-from users.forms import UserRegisterForm
+from users.forms import RunnerInviteForm, UserRegisterForm
 from users.models import User, UserType
 
 
-class TestForms:
+class TestUserRegisterForm:
+    def test_init(self):
+        UserRegisterForm()
+
+    def test_empty_data(self):
+        form = UserRegisterForm(data={})
+        assert form.is_valid() is False
+
     @pytest.mark.usefixtures('transactional_db')
-    def test_runner_creation(self):
-        user_data = {'username': 'user1',
-                     'password1': 'sdfjhusdfjhsiudfhjsf',
-                     'password2': 'sdfjhusdfjhsiudfhjsf',
-                     'email': 'email@email.com',
-                     'user_type': UserType.RUNNER}
-        form = UserRegisterForm(user_data)
+    def test_correct_data(self):
+        form = UserRegisterForm(
+            data={'username': 'runner',
+                  'email': 'runner@users.com',
+                  'password1': 'StrongPassword',
+                  'password2': 'StrongPassword',
+                  'user_type': UserType.RUNNER})
+        assert form.is_valid() is True
 
-        user: User = form.save()
 
-        assert user.username == user_data['username']
-        assert user.check_password(user_data['password1'])
-        assert user.is_runner
-        assert not user.is_coach
-        assert user.runners.count() == 0
+class TestRunnerInviteForm:
+    def test_correct_data(self, runner: User):
+        form = RunnerInviteForm(data={'runner': runner.username})
 
-    def test_get(self, client: Client):
-        response = client.get('/signup/')
-        print(response.content)
+        assert form.is_valid() is True
+
+    @pytest.mark.usefixtures('transactional_db')
+    def test_incorrect_data(self):
+        form = RunnerInviteForm(data={'runner': 'freewge'})
+
+        assert form.is_valid() is False

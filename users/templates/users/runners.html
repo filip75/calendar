@@ -1,0 +1,21 @@
+{% extends 'trainings/base.html' %}
+{% load crispy_forms_tags %}
+{% block content %}
+    {% for relation in object_list %}
+        <a href="{{ relation.get_absolute_url }}">
+            <div class="{% if relation.status == 0 %}faded{% endif %}">
+                <p>{{ relation.displayed_name }}</p>
+            </div>
+        </a>
+    {% endfor %}
+    <form method="post">
+        {% csrf_token %}
+        <fieldset class="form-group">
+            <legend class="border-bottom mb-4">Logowanie</legend>
+            {{ form|crispy }}
+        </fieldset>
+        <div class="form-group">
+            <button class="btn btn-outline-info" type="submit">Zaloguj</button>
+        </div>
+    </form>
+{% endblock content %}

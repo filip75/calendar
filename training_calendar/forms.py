@@ -1,10 +1,10 @@
 from django.contrib.auth.forms import SetPasswordForm
-from django.forms import CharField, Form, HiddenInput
+from django.forms import CharField, HiddenInput, forms
 
 
-class MultipleForm(Form):
+class MultipleFormMixin(forms.BaseForm):
     action = CharField(max_length=100, widget=HiddenInput())
 
 
-class MultipleSetPasswordForm(SetPasswordForm, MultipleForm):
+class MultipleSetPasswordForm(MultipleFormMixin, SetPasswordForm):
     pass

@@ -1,9 +1,10 @@
 from typing import Callable, Dict, Optional, Tuple, Type
 
-from django.forms import Form
-from django.http import HttpResponse, HttpResponseForbidden
+from django.forms import BaseForm
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect
-from django.views.generic import ListView, TemplateView
+from django.views.generic import ListView
+from django.views.generic.base import ContextMixin, TemplateResponseMixin, View
 from django.views.generic.edit import FormMixin
 
 
@@ -25,7 +26,7 @@ class FormListView(ListView, FormMixin):
             return self.get(request, *args, **kwargs)
 
 
-class MultipleFormView(TemplateView):
+class MultipleFormMixin(ContextMixin):
     """
     Based on https://www.codementor.io/lakshminp/handling-multiple-forms-on-the-same-page-in-django-fv89t2s3j
     """
@@ -39,8 +40,8 @@ class MultipleFormView(TemplateView):
 
     def add_form(self,
                  form_name: str,
-                 form_class: Type[Form],
-                 valid_func: Optional[Callable[[Form], HttpResponse]] = None,
+                 form_class: Type[BaseForm],
+                 valid_func: Optional[Callable[[BaseForm], HttpResponse]] = None,
                  success_url: Optional[str] = None,
                  initial: Optional[dict] = None,
                  prefix: Optional[str] = None,
@@ -81,37 +82,56 @@ class MultipleFormView(TemplateView):
                              'files': self.request.FILES}
                 self.stored.update({form: post_data})
                 kwargs.update(post_data)
+        else:
+            self.stored = {}
         return [], kwargs
 
-    def get_forms(self) -> Dict[str, Form]:
+    def get_forms(self) -> Dict[str, BaseForm]:
         forms = {}
         for key, form_class in self.form_classes.items():
             args, kwargs = self.forms_kwargs_func.get(key, self.get_form_kwargs)(key)
             forms[key] = form_class(*args, **kwargs)
         return forms
 
-    def form_valid(self, form: Form, form_name: str) -> HttpResponse:
+    def form_valid(self, form: BaseForm, form_name: str) -> HttpResponse:
         valid_method = self.forms_valid_func.get(form_name)
         if valid_method:
             return valid_method(form)
         else:
             return redirect(self.get_success_url(form_name))
 
-    def form_invalid(self, forms: Dict[str, Form]) -> HttpResponse:
+    def form_invalid(self, forms: Dict[str, BaseForm]) -> HttpResponse:
         return self.render_to_response(self.get_context_data(forms=forms))
 
+    def get_context_data(self, **kwargs) -> dict:
+        if 'forms' not in kwargs:
+            kwargs['forms'] = self.get_forms()
+        return super().get_context_data(**kwargs)
+
+
+class ProcessMultipleFormView(View):
+
     def get(self, request, *args, **kwargs) -> HttpResponse:
-        self.stored = {}
-        forms = self.get_forms()
-        return self.render_to_response(self.get_context_data(forms=forms))
+        return self.render_to_response(self.get_context_data())
 
     def post(self, request, *args, **kwargs) -> HttpResponse:
         form_name = request.POST.get('action')
         forms = self.get_forms()
         form = forms.get(form_name)
         if not form:
-            return HttpResponseForbidden()
+            return HttpResponseBadRequest()
         elif form.is_valid():
             return self.form_valid(form, form_name)
         else:
             return self.form_invalid(forms)
+
+    def put(self, *args, **kwargs):
+        return self.post(*args, **kwargs)
+
+
+class BaseMultipleFormView(MultipleFormMixin, ProcessMultipleFormView):
+    """A base view for displaying multiple forms"""
+
+
+class MultipleFormView(TemplateResponseMixin, BaseMultipleFormView):
+    """A view for displaying multiple forms"""
