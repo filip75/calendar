@@ -1,4 +1,6 @@
 import pytest
+from django.db import IntegrityError
+from django.urls import reverse
 
 from users.models import Relation, RelationStatus, User
 
@@ -68,3 +70,12 @@ class TestRelation:
         assert relation.displayed_name == relation.runner.username
         relation.nickname = 'runner nickname'
         assert relation.displayed_name == 'runner nickname'
+
+    def test_get_absolute_url(self, relation: Relation):
+        assert relation.get_absolute_url() == reverse('users-runners-detail',
+                                                      kwargs={'runner': relation.runner.username})
+
+    @pytest.mark.usefixtures('relation')
+    def test_runner_coach_unique(self, runner: User, coach: User):
+        with pytest.raises(IntegrityError):
+            Relation.objects.create(runner=runner, coach=coach)

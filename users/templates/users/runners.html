@@ -3,7 +3,7 @@
 {% block content %}
     {% for relation in object_list %}
         <a href="{{ relation.get_absolute_url }}">
-            <div class="{% if relation.status == 0 %}faded{% endif %}">
+            <div class="{% if relation.status == 1 %}faded{% endif %}">
                 <p>{{ relation.displayed_name }}</p>
             </div>
         </a>

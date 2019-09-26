@@ -1,7 +1,7 @@
 import pytest
 
 from users.forms import RunnerInviteForm, UserRegisterForm
-from users.models import User, UserType
+from users.models import UserType
 
 
 class TestUserRegisterForm:
@@ -17,20 +17,30 @@ class TestUserRegisterForm:
         form = UserRegisterForm(
             data={'username': 'runner',
                   'email': 'runner@users.com',
-                  'password1': 'StrongPassword',
-                  'password2': 'StrongPassword',
-                  'user_type': UserType.RUNNER})
-        assert form.is_valid() is True
-
-
-class TestRunnerInviteForm:
-    def test_correct_data(self, runner: User):
-        form = RunnerInviteForm(data={'runner': runner.username})
-
+                  'password1': 'testing321',
+                  'password2': 'testing321',
+                  'user_type': str(UserType.RUNNER.value)})
         assert form.is_valid() is True
 
     @pytest.mark.usefixtures('transactional_db')
-    def test_incorrect_data(self):
-        form = RunnerInviteForm(data={'runner': 'freewge'})
+    def test_save(self):
+        form = UserRegisterForm(
+            data={'username': 'coach',
+                  'email': 'coach@users.com',
+                  'password1': 'testing321',
+                  'password2': 'testing321',
+                  'user_type': str(UserType.COACH.value)})
 
-        assert form.is_valid() is False
+        instance = form.save()
+        print(instance)
+        print(instance.is_coach)
+        assert instance.is_coach is True
+
+
+class TestRunnerInviteForm:
+    def test_max_length(self):
+        form1 = RunnerInviteForm(data={'runner': 'x' * 151})
+        form2 = RunnerInviteForm(data={'runner': 'x' * 150})
+
+        assert form1.is_valid() is False
+        assert form2.is_valid() is True

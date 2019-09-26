@@ -5,11 +5,11 @@ from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest
 from django.template.response import TemplateResponse
-from django.test import Client, RequestFactory
+from django.test import RequestFactory
 from django.urls import reverse
 
 from users.models import Relation, User
-from users.views import RunnerListView, SignUpView
+from users.views import RunnerListView
 
 
 @pytest.fixture
@@ -102,23 +102,22 @@ class TestRunnersView:
             response = RunnerListView.as_view()(request)
             assert response.status_code == 403
 
-
-class TestSignupView:
-    def test_get(self, client: Client, user_register_form):
-        response = client.get('/signup/')
-
-        assert 200 == response.status_code
-        assert '<form' in str(response.content)
-
-    def test_post(self, user_register_form, request_factory: RequestFactory):
-        request: HttpRequest = request_factory.post(reverse('users-signup'), {})
-
-        # is_valid.is_valid = Mock(side_effect=lambda: True)
-        v = SignUpView.as_view(form_class=user_register_form)
-
-        response = v(request)
-        # response = client.post('/signup/', data={})
-
-        # assert is_valid.is_valid.assert_called()
-        # assert user_register_form.is_valid
-        assert response.status_code == 201
+# class TestSignupView:
+#     def test_get(self, client: Client, user_register_form):
+#         response = client.get('/signup/')
+#
+#         assert 200 == response.status_code
+#         assert '<form' in str(response.content)
+#
+#     def test_post(self, user_register_form, request_factory: RequestFactory):
+#         request: HttpRequest = request_factory.post(reverse('users-signup'), {})
+#
+#         # is_valid.is_valid = Mock(side_effect=lambda: True)
+#         v = SignUpView.as_view(form_class=user_register_form)
+#
+#         response = v(request)
+#         # response = client.post('/signup/', data={})
+#
+#         # assert is_valid.is_valid.assert_called()
+#         # assert user_register_form.is_valid
+#         assert response.status_code == 201

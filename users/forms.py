@@ -5,22 +5,24 @@ from django.utils.translation import gettext
 
 from users.models import User, UserType
 
-USER_TYPE_CHOICES = [(UserType.RUNNER, gettext('runner')), (UserType.COACH, gettext('coach'))]
+USER_TYPE_CHOICES = [(UserType.RUNNER.value, gettext('runner')), (UserType.COACH.value, gettext('coach'))]
 
 
 class UserRegisterForm(UserCreationForm):
     email = forms.EmailField()
-    user_type = forms.ChoiceField(choices=USER_TYPE_CHOICES, widget=forms.RadioSelect, label=gettext('User type'))
+    user_type = forms.TypedChoiceField(choices=USER_TYPE_CHOICES, widget=forms.RadioSelect, label=gettext('User type'),
+                                       coerce=int)
 
     class Meta:
         model = User
         fields = ['username', 'email', 'password1', 'password2', 'user_type']
 
-    def save(self, commit=True):
+    def save(self, commit=True) -> User:
         user = super().save(commit=False)
-        if self.data['user_type'] == UserType.RUNNER:
+        user_type = int(self.data['user_type'])
+        if user_type == UserType.RUNNER:
             user.is_runner = True
-        elif self.data['user_type'] == UserType.COACH:
+        elif user_type == UserType.COACH:
             user.is_coach = True
         if commit:
             user.save()
