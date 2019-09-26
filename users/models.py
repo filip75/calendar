@@ -12,9 +12,9 @@ class UserType(IntEnum):
 
 
 class RelationStatus(IntEnum):
-    INVITED_BY_COACH = 0
-    INVITED_BY_RUNNER = 1
-    ESTABLISHED = 2
+    ESTABLISHED = 0
+    INVITED_BY_COACH = 1
+    INVITED_BY_RUNNER = 2
     REVOKED = 3
 
 
@@ -28,10 +28,10 @@ class User(AbstractUser):
     def coaches(self) -> List['User']:
         return [r.coach for r in self.runner_relation.all()]
 
-    def has_coach(self) ->bool:
+    def has_coach(self) -> bool:
         return self.is_runner and self.runner_relation.filter(status=RelationStatus.ESTABLISHED).exists()
 
-    def has_been_invited(self, user: 'User')->bool:
+    def has_been_invited(self, user: 'User') -> bool:
         return self.runner_relation.filter(coach=user).exists()
 
     def __str__(self):
@@ -45,6 +45,9 @@ class Relation(models.Model):
                                  default=RelationStatus.INVITED_BY_COACH, blank=True)
     nickname = models.CharField(max_length=150, null=True, blank=True)
 
+    class Meta:
+        unique_together = [['runner', 'coach']]
+
     @property
     def displayed_name(self) -> str:
         return self.nickname if self.nickname else self.runner.username
@@ -53,4 +56,4 @@ class Relation(models.Model):
         return f'Relation of runner ({self.runner}) and coach ({self.coach})'
 
     def get_absolute_url(self):
-        return reverse('users-runners-detail', kwargs={'pk': self.id})
+        return reverse('users-runners-detail', kwargs={'runner': self.runner.username})
