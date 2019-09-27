@@ -3,18 +3,19 @@ from typing import Tuple
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.db import IntegrityError
 from django.forms import Form
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.utils.translation import gettext
-from django.views.generic import CreateView, DetailView, ListView
-from django.views.generic.edit import FormMixin
+from django.views.generic import CreateView, ListView
+from django.views.generic.edit import DeleteView, FormMixin, UpdateView
 
 from training_calendar.forms import MultipleSetPasswordForm
 from training_calendar.views import MultipleFormView
 from users.forms import RunnerInviteForm, UserRegisterForm
-from users.models import Relation, User
+from users.models import Relation, RelationStatus, User
 
 
 class UserIsCoachMixin(UserPassesTestMixin):
@@ -83,10 +84,12 @@ class RunnerListView(LoginRequiredMixin, UserIsCoachMixin, FormMixin, ListView):
     model = Relation
     template_name = 'users/runners.html'
     form_class = RunnerInviteForm
-    paginate_by = 50
+    paginate_by = 15
+    extra_context = {'RelationStatus': RelationStatus}
 
     def get_queryset(self):
-        return Relation.objects.filter(coach=self.request.user).order_by('status')
+        return Relation.objects.filter(coach=self.request.user).exclude(
+            status=RelationStatus.INVITED_BY_RUNNER).order_by('status')
 
     def post(self, request):
         """
@@ -101,24 +104,39 @@ class RunnerListView(LoginRequiredMixin, UserIsCoachMixin, FormMixin, ListView):
     def form_valid(self, form):
         query = User.objects.filter(username=form.data['runner'], is_runner=True)
         if not query.exists():
-            messages.error(self.request, gettext("User doesn't exist"))
+            messages.warning(self.request, gettext("User doesn't exist"))
             return
         runner: User = query.first()
         if runner.has_been_invited(self.request.user):
-            messages.error(self.request, gettext('User has already been invited'))
+            messages.warning(self.request, gettext('User has already been invited'))
             return
         if runner.has_coach():
-            messages.error(self.request, gettext("User already has a coach"))
+            messages.warning(self.request, gettext("User already has a coach"))
             return
         Relation.objects.create(coach=self.request.user, runner=runner)
         messages.success(self.request, gettext("User invited successfully"))
 
 
-class RunnerDetailView(LoginRequiredMixin, UserIsCoachMixin, DetailView):
+class RunnerDetailView(LoginRequiredMixin, UserIsCoachMixin, UpdateView):
     template_name = 'users/runner_detail.html'
     model = Relation
     slug_field = "runner__username"
     slug_url_kwarg = "runner"
+    fields = ['nickname']
+    extra_context = {'RelationStatus': RelationStatus}
 
     def get_queryset(self):
-        return Relation.objects.filter(coach=self.request.user)
+        return Relation.objects.filter(coach=self.request.user, status=RelationStatus.ESTABLISHED)
+
+    def form_valid(self, form):
+        try:
+            response = super().form_valid(form)
+            messages.success(self.request, "User's nickname set successfully")
+            return response
+        except IntegrityError:
+            messages.warning(self.request, gettext("User with this nickname already exists"))
+            return HttpResponseRedirect(self.get_success_url())
+
+
+class RunnerDeleteView(LoginRequiredMixin, UserIsCoachMixin, DeleteView):
+    pass

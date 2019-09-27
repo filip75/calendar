@@ -1,8 +1,26 @@
 {% extends 'trainings/base.html' %}
 {% load crispy_forms_tags %}
 {% block content %}
-    <div>
-        <h3>{{ object.displayed_name }}</h3>
+    <div class="row mb-2">
+        <img class="mx-2" src="/media/default.png" alt="zdjęcie zawodnika"/>
+        <h3 class="my-auto mr-3">{{ object.displayed_name }}
+            {% if object.displayed_name != object.runner.username %}
+                ({{ object.runner.username }})
+            {% endif %}</h3>
+        <a href="#" class="btn btn-outline-primary mb-2 my-auto">Treningi</a>
     </div>
-
+    <form method="post" class="border border-outline-primary rounded p-2">
+        {% csrf_token %}
+        <fieldset class="form-group">
+            <legend class="border-bottom mb-2">Zmień wyświetlaną nazwę</legend>
+            {{ form|crispy }}
+        </fieldset>
+        <div class="form-group">
+            <button class="btn btn-outline-info" type="submit">Zmień</button>
+        </div>
+    </form>
+    <div class="row">
+        <a href="{% url 'users-runners-delete' runner=object.runner.username %}"
+           class="btn btn-outline-danger mt-5 ml-3">Usuń zawodnika</a>
+    </div>
 {% endblock content %}

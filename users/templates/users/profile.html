@@ -1,12 +1,12 @@
 {% extends 'trainings/base.html' %}
 {% load crispy_forms_tags %}
 {% block content %}
-    <form method="post">{% csrf_token %}
-        {{ forms.invite }}
+    <form class="mb-5" method="post">{% csrf_token %}
+        {{ forms.invite.as_p }}
         <input type="submit" value="Subscribe">
     </form>
     <form method="post">{% csrf_token %}
-        {{ forms.change_password }}
+        {{ forms.change_password.as_p }}
         <input type="submit" value="Send">
     </form>
 {% endblock content %}
