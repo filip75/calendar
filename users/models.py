@@ -4,6 +4,12 @@ from typing import List
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.urls import reverse
+from django.utils.translation import gettext_lazy
+
+
+def template_enum(cls):
+    cls.do_not_call_in_templates = True
+    return cls
 
 
 class UserType(IntEnum):
@@ -11,6 +17,7 @@ class UserType(IntEnum):
     COACH = 1
 
 
+@template_enum
 class RelationStatus(IntEnum):
     ESTABLISHED = 0
     INVITED_BY_COACH = 1
@@ -43,10 +50,10 @@ class Relation(models.Model):
     runner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='runner_relation')
     status = models.IntegerField(choices=[(s.value, s.name) for s in RelationStatus],
                                  default=RelationStatus.INVITED_BY_COACH, blank=True)
-    nickname = models.CharField(max_length=150, null=True, blank=True)
+    nickname = models.CharField(max_length=150, null=True, blank=True, verbose_name=gettext_lazy('nickname'))
 
     class Meta:
-        unique_together = [['runner', 'coach']]
+        unique_together = [['runner', 'coach'], ['coach', 'nickname']]
 
     @property
     def displayed_name(self) -> str:

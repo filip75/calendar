@@ -29,15 +29,15 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav mr-auto">
-                <li class="nav-item active">
-                    <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#">Link</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link disabled" href="#" tabindex="-1" aria-disabled="true">Disabled</a>
-                </li>
+                {% if user.is_coach %}
+                    <li class="nav-item active">
+                        <a class="nav-link" href="{% url 'users-runners' %}">Zawodnicy</a>
+                    </li>
+                    <li class="nav-item active">
+                        <a class="nav-link" href="#">Dodaj trening</a>
+                    </li>
+                {% elif user.is_runner %}
+                {% endif %}
             </ul>
             <ul class="navbar-nav">
                 {% if user.is_authenticated %}

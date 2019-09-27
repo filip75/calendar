@@ -79,3 +79,14 @@ class TestRelation:
     def test_runner_coach_unique(self, runner: User, coach: User):
         with pytest.raises(IntegrityError):
             Relation.objects.create(runner=runner, coach=coach)
+
+    def test_coach_nickname_unique(self, runner: User, coach: User, relation: Relation):
+        relation.nickname = 'nickname'
+        relation.save()
+        another_runner = User.objects.create(username='another_runner', is_runner=True,
+                                             email='another_runner@users.com')
+        another_relation = Relation.objects.create(coach=coach, runner=another_runner)
+
+        with pytest.raises(IntegrityError):
+            another_relation.nickname = 'nickname'
+            another_relation.save()
