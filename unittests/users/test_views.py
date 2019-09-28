@@ -3,13 +3,14 @@ from unittest.mock import Mock
 import pytest
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied
-from django.http import HttpRequest
+from django.http import Http404, HttpRequest
 from django.template.response import TemplateResponse
 from django.test import RequestFactory
 from django.urls import reverse
+from django.views.generic import DeleteView
 
 from users.models import Relation, RelationStatus, User
-from users.views import RunnerDetailView, RunnerListView
+from users.views import RunnerDeleteView, RunnerDetailView, RunnerListView
 
 
 @pytest.fixture
@@ -118,8 +119,10 @@ class TestRunnerDetailView:
         request: HttpRequest = request_factory.get(
             reverse('users-runners-detail', kwargs={'runner': relation.runner.username}))
         request.user = coach
+        relation.status = RelationStatus.ESTABLISHED
+        relation.save()
 
-        response = RunnerListView.as_view()(request)
+        response = RunnerDetailView.as_view()(request, runner=relation.runner.username)
 
         assert response.status_code == 200
 
@@ -127,7 +130,7 @@ class TestRunnerDetailView:
         request: HttpRequest = request_factory.get(reverse('users-runners-detail', kwargs={'runner': 'a'}))
         request.user = AnonymousUser()
 
-        response = RunnerListView.as_view()(request)
+        response = RunnerDetailView.as_view()(request, runner='a')
 
         assert response.status_code == 302
 
@@ -135,8 +138,10 @@ class TestRunnerDetailView:
         request: HttpRequest = request_factory.get(reverse('users-runners-detail',
                                                            kwargs={'runner': relation.runner.username}))
         request.user = coach
+        relation.status = RelationStatus.ESTABLISHED
+        relation.save()
 
-        response = RunnerListView.as_view()(request)
+        response = RunnerDetailView.as_view()(request, runner=relation.runner.username)
 
         assert response.status_code == 200
 
@@ -145,27 +150,28 @@ class TestRunnerDetailView:
         request.user = runner
 
         with pytest.raises(PermissionDenied):
-            response = RunnerListView.as_view()(request)
-            assert response.status_code == 403
+            RunnerDetailView.as_view()(request, runner='a')
 
     def test_only_established(self, coach: User, request_factory: RequestFactory):
         runners = []
         for idx, status in enumerate(RelationStatus):
-            if status != RelationStatus.ESTABLISHED:
-                runner = User.objects.create(username=f'runner{idx}', is_runner=True, email=f'runner{idx}@users.com')
-                Relation.objects.create(coach=coach, runner=runner, status=status)
-                runners.append(runner)
-        view = RunnerDetailView()
+            runner = User.objects.create(username=f'runner{idx}', is_runner=True, email=f'runner{idx}@users.com')
+            relation = Relation.objects.create(coach=coach, runner=runner, status=status)
+            runners.append((runner, relation))
+        view = RunnerDetailView.as_view()
 
-        for runner in runners:
+        for runner, relation in runners:
             request: HttpRequest = request_factory.get(
                 reverse('users-runners-detail', kwargs={'runner': runner.username}))
             request.user = coach
-            view.request = request
 
-            queryset = view.get_queryset()
-
-            assert len(queryset) == 0
+            if relation.status == RelationStatus.ESTABLISHED:
+                response: TemplateResponse = view(request, runner=runner.username)
+                assert response.status_code == 200
+                assert response.context_data['object'] == relation
+            else:
+                with pytest.raises(Http404):
+                    view(request, runner=runner.username)
 
     def test_shows_only_runners_of_user(self, coach: User, relation: Relation, request_factory: RequestFactory):
         runner = User.objects.create(username='another_runner', email='another_runner@users.com', is_runner=True)
@@ -173,11 +179,76 @@ class TestRunnerDetailView:
         request: HttpRequest = request_factory.get(reverse('users-runners-detail', kwargs={'runner': runner.username}))
         request.user = coach
         view = RunnerDetailView()
-        view.request = request
+        view.setup(request, runner=runner.username)
 
-        queryset = view.get_queryset()
+        with pytest.raises(Http404):
+            view.dispatch(request)
 
-        assert len(queryset) == 0
+
+class TestRunnerDeleteView:
+    def test_login_required(self, coach: User, request_factory: RequestFactory, relation: Relation):
+        request: HttpRequest = request_factory.get(
+            reverse('users-runners-delete', kwargs={'runner': relation.runner.username}))
+        request.user = coach
+
+        response = RunnerDeleteView.as_view()(request, runner=relation.runner.username)
+
+        assert response.status_code == 200
+
+    def test_login_required_negative(self, request_factory: RequestFactory):
+        request: HttpRequest = request_factory.get(reverse('users-runners-delete', kwargs={'runner': 'a'}))
+        request.user = AnonymousUser()
+
+        response = RunnerDeleteView.as_view()(request, runner='a')
+
+        assert response.status_code == 302
+
+    def test_allow_only_coach(self, coach: User, request_factory: RequestFactory, relation: Relation):
+        request: HttpRequest = request_factory.get(reverse('users-runners-delete',
+                                                           kwargs={'runner': relation.runner.username}))
+        request.user = coach
+
+        response = RunnerDeleteView.as_view()(request, runner=relation.runner.username)
+
+        assert response.status_code == 200
+
+    def test_allow_only_coach_negative(self, runner: User, request_factory: RequestFactory):
+        request: HttpRequest = request_factory.get(reverse('users-runners-delete', kwargs={'runner': 'a'}))
+        request.user = runner
+
+        with pytest.raises(PermissionDenied):
+            RunnerDeleteView.as_view()(request, runner='a')
+
+    def test_show_all_but_invited_by_runner(self, coach: User, request_factory: RequestFactory):
+        runners = []
+        for idx, status in enumerate(RelationStatus):
+            runner = User.objects.create(username=f'runner{idx}', is_runner=True, email=f'runner{idx}@users.com')
+            relation = Relation.objects.create(coach=coach, runner=runner, status=status)
+            runners.append((runner, relation))
+        view = RunnerDeleteView.as_view()
+
+        for runner, relation in runners:
+            request: HttpRequest = request_factory.get(
+                reverse('users-runners-delete', kwargs={'runner': runner.username}))
+            request.user = coach
+            view.request = request
+
+            if relation.status == RelationStatus.INVITED_BY_RUNNER:
+                with pytest.raises(Http404):
+                    view(request, runner=runner.username)
+            else:
+                assert view(request, runner=runner.username).status_code == 200
+
+    def test_post(self, relation: Relation, request_factory: RequestFactory):
+        request: HttpRequest = request_factory.post(
+            reverse('users-runners-delete', kwargs={'runner': relation.runner.username}))
+        request.user = relation.coach
+        RunnerDeleteView.post = DeleteView.post
+        view = RunnerDeleteView.as_view()
+
+        view(request, runner=relation.runner.username)
+
+        assert not Relation.objects.filter(id=relation.id).exists()
 
 # class TestSignupView:
 #     def test_get(self, client: Client, user_register_form):

@@ -139,4 +139,16 @@ class RunnerDetailView(LoginRequiredMixin, UserIsCoachMixin, UpdateView):
 
 
 class RunnerDeleteView(LoginRequiredMixin, UserIsCoachMixin, DeleteView):
-    pass
+    template_name = 'users/runner_delete.html'
+    model = Relation
+    slug_field = "runner__username"
+    slug_url_kwarg = "runner"
+    success_url = reverse_lazy('users-runners')
+    extra_context = {'RelationStatus': RelationStatus}
+
+    def get_queryset(self):
+        return Relation.objects.filter(coach=self.request.user).exclude(status=RelationStatus.INVITED_BY_RUNNER)
+
+    def post(self, request, *args, **kwargs):
+        messages.info(request, gettext('Deleted successfully'))
+        return super().post(request, *args, *kwargs)
