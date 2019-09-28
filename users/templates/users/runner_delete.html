@@ -1,0 +1,41 @@
+{% extends 'trainings/base.html' %}
+{% load crispy_forms_tags %}
+{% block content %}
+    {% if object.status == RelationStatus.ESTABLISHED %}
+        <form method="post" class="border border-outline-primary rounded p-2">
+            {% csrf_token %}
+            <div class="row mb-2">
+                <img class="mx-2" src="/media/default.png" alt="zdjęcie zawodnika"/>
+                <h3 class="my-auto mr-3">{{ object.displayed_name }}
+                    {% if object.displayed_name != object.runner.username %}
+                        ({{ object.runner.username }})
+                    {% endif %}</h3>
+            </div>
+            <p>Usunąć zawodnika {{ object.displayed_name }}? Wszytskie treningi zostaną utacone.</p>
+            <div class="form-group">
+                <button class="btn btn-outline-danger" type="submit">Usuń</button>
+                <a class="btn btn-outline-info ml-3"
+                   href="{% url 'users-runners-detail' runner=object.runner.username %}">
+                    Anuluj
+                </a>
+            </div>
+        </form>
+    {% else %}
+        <form method="post" class="border border-outline-primary rounded p-2">
+            {% csrf_token %}
+            <div class="row mb-2">
+                <img class="mx-2" src="/media/default.png" alt="zdjęcie zawodnika"/>
+                <h3 class="my-auto mr-3">{{ object.displayed_name }}</h3>
+            </div>
+            <p>Confąć zaproszenie zawodnika {{ object.displayed_name }}?</p>
+            <div class="form-group">
+                <button class="btn btn-outline-danger" type="submit">Cofnij</button>
+                <a class="btn btn-outline-info ml-3"
+                   href="{% url 'users-runners' %}">
+                    Anuluj
+                </a>
+            </div>
+        </form>
+    {% endif %}
+
+{% endblock content %}
