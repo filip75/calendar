@@ -1,0 +1,28 @@
+{% extends 'trainings/base.html' %}
+{% load crispy_forms_tags %}
+{% block content %}
+    <div class="row mb-2">
+        <img class="mx-2" src="/media/default.png" alt="zdjęcie zawodnika"/>
+        <h3 class="my-auto mr-3">{{ relation.displayed_name }}</h3>
+        <a href="{{ relation.get_absolute_url }}" class="btn btn-outline-info mb-2 my-auto">Profil</a>
+    </div>
+    <div class="mx-auto d-flex justify-content-center my-3">
+        <a class="btn btn-outline-info mr-4 w-25" href="?date={{ previous_week|date:'Y-m-d' }}">Poprzedni tydzień</a>
+        <a class="btn btn-outline-info mr-4 w-25" href="?date={{ today|date:'Y-m-d' }}">Dzisiaj</a>
+        <a class="btn btn-outline-info w-25" href="?date={{ next_week|date:'Y-m-d' }}">Następny tydzień</a>
+    </div>
+    {% for training in object_list %}
+        <div class="border rounded mb-2 p-1 row{% if training.pk is None %} pending{% endif %}">
+            <div class="col-md-3 my-auto">{{ training.date|date:'d E Y - l' }}</div>
+            {% if training.pk is None %}
+                <div class="col-md-6 my-auto">Brak treningu</div>
+                <a class="col-md-3 btn btn-outline-info my-auto"
+                   href="{% url 'trainings-create' %}?runner={{ training.relation.runner.username }}&date={{ training.date|date:'Y-m-d' }}">
+                    Dodaj trening</a>
+            {% else %}
+                <div class="col-md-6 my-auto">{{ training.description|truncatechars:30 }}</div>
+                <a class="col-md-3 btn btn-outline-info my-auto" href="{{ training.get_absolute_url }}">Szczegóły</a>
+            {% endif %}
+        </div>
+    {% endfor %}
+{% endblock content %}

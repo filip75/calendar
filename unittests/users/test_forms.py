@@ -32,8 +32,6 @@ class TestUserRegisterForm:
                   'user_type': str(UserType.COACH.value)})
 
         instance = form.save()
-        print(instance)
-        print(instance.is_coach)
         assert instance.is_coach is True
 
 

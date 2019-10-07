@@ -1,10 +1,24 @@
-from users.models import User
+from django.db import models
+from django.urls import reverse
 
-# class RunnerCoachRelation(models.Model):
-#     runner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='%(class)s_runner')
-#     coach = models.ForeignKey(User, on_delete=models.CASCADE, related_name='%(class)s_coach', blank=True)
-#     connection_date = models.DateField(default=date.today)
-#     is_accepted = models.BooleanField(default=False)
-#
-#     def __str__(self):
-#         return f'runner:{str(self.runner)}-coach:{str(self.coach)}'
+from users.models import Relation, User
+
+
+class Training(models.Model):
+    relation = models.ForeignKey(Relation, on_delete=models.CASCADE)
+    date = models.DateField()
+    description = models.TextField()
+    execution = models.TextField(null=True)
+    visible_since = models.DateField(null=True, blank=True)
+
+    class Meta:
+        constraints = ['relation', 'date']
+
+    def get_absolute_url(self):
+        return reverse('trainings-entry', kwargs={'runner': self.relation.runner.username, 'date': self.date})
+
+    def __str__(self) -> str:
+        return f'Training(' \
+            f'runner={self.relation.runner.username}, ' \
+            f'trainer={self.relation.coach.username}, ' \
+            f'date={self.date})'

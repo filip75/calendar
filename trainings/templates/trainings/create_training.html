@@ -1,0 +1,42 @@
+{% extends 'trainings/base.html' %}
+{% load crispy_forms_tags %}
+{% block content %}
+    <h3 class="mb-4">Dodaj trening</h3>
+    <form method="post" class="border border-outline-primary rounded p-2">
+        {% csrf_token %}
+        <fieldset class="form-group">
+            <legend class="border-bottom mb-2">Trening</legend>
+            {% if has_training %}
+                <p class="warning">Mają już trening na ten dzień</p>
+                {% for training in has_training %}
+                    <div class="row border rounded mx-4 mb-1 d-flex">
+                        <div class="col-md-3">{{ training.relation.displayed_name }}</div>
+                        <div class="col-md-6">{{ training.description|truncatechars:30 }}</div>
+                        <div class="col-md-3"><a href="">Szczegóły</a></div>
+                    </div>
+                {% endfor %}
+                <div class="form-group">
+                    <button class="btn btn-outline-info w-100 my-4" type="submit">Nadpisz</button>
+                </div>
+            {% endif %}
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="ml-2">
+                        {{ form.runners|as_crispy_field }}
+                    </div>
+                </div>
+                <div class="col-md-9">
+                    {% for field in form %}
+                        {% if field.name != "runners" %}
+                            {{ field| as_crispy_field }}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </fieldset>
+        <div class="form-group">
+            <button class="btn btn-outline-info w-100" type="submit">Dodaj</button>
+        </div>
+    </form>
+
+{% endblock content %}

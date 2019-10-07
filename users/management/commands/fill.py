@@ -1,9 +1,10 @@
-import random
+import datetime
 
 from django.contrib.auth.hashers import make_password
 from django.core.management import BaseCommand
 
-from users.models import Relation, RelationStatus, User
+from trainings.models import Training
+from users.models import Relation, User
 
 PASSWORD = 'testing321'
 EMAIL = '@users.com'
@@ -27,8 +28,12 @@ class Command(BaseCommand):
                     User.objects.create(username=value, password=make_password(PASSWORD), email=f'{value}@users.com',
                                         is_coach=True)
                 elif command == 'relation':
-                    runner, coach = value.split('-')
+                    runner, coach, status = value.split('-')
                     runner = User.objects.get(username=runner)
                     coach = User.objects.get(username=coach)
-                    Relation.objects.create(runner=runner, coach=coach, status=random.choice(
-                        [RelationStatus.ESTABLISHED, RelationStatus.INVITED_BY_COACH, RelationStatus.REVOKED]))
+                    Relation.objects.create(runner=runner, coach=coach, status=status)
+                elif command == 'training':
+                    runner, coach, date, description = value.split('-')
+                    relation = Relation.objects.get(coach__username=coach, runner__username=runner)
+                    Training.objects.create(relation=relation, date=datetime.datetime.strptime(date, '%Y.%m.%d'),
+                                            description=description)
