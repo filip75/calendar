@@ -1,5 +1,4 @@
 {% load static %}
-
 <!doctype html>
 <html lang="en" class="h-100">
 <head>
@@ -34,7 +33,7 @@
                         <a class="nav-link" href="{% url 'users-runners' %}">Zawodnicy</a>
                     </li>
                     <li class="nav-item active">
-                        <a class="nav-link" href="{%  url 'trainings-create' %}">Dodaj trening</a>
+                        <a class="nav-link" href="{% url 'trainings-create' %}">Dodaj trening</a>
                     </li>
                 {% elif user.is_runner %}
                 {% endif %}
