@@ -1,9 +1,9 @@
 {% extends 'trainings/base.html' %}
 {% load crispy_forms_tags %}
 {% block content %}
+    <h3 class="mb-4">Zawodnicy</h3>
     <div class="row">
         <div class="col-md-6">
-            <h3 class="mb-4">Zawodnicy</h3>
             {% for relation in object_list %}
                 <div class="row mb-3 px-1 runner_entry {% if relation.status != RelationStatus.ESTABLISHED %}pending{% endif %}">
                     <div class="float-left">
@@ -19,8 +19,9 @@
                     </div>
                     <div class="my-auto float-right">
                         {% if relation.status == RelationStatus.ESTABLISHED %}
-                            <a class="btn btn-outline-primary">Treningi</a>
-                            <a class="btn btn-outline-primary" href="{{ relation.get_absolute_url }}">Profil</a>
+                            <a class="btn btn-outline-info"
+                               href="{% url 'trainings-list' runner=relation.runner.username %}">Treningi</a>
+                            <a class="btn btn-outline-info" href="{{ relation.get_absolute_url }}">Profil</a>
                         {% else %}
                             <a href="{% url 'users-runners-delete' runner=relation.runner.username %}"
                                class="btn btn-outline-danger">Cofnij zaproszenie</a>
@@ -56,7 +57,7 @@
                     {{ form|crispy }}
                 </fieldset>
                 <div class="form-group">
-                    <button class="btn btn-outline-info" type="submit">Zaproś</button>
+                    <button class="btn btn-outline-info w-100" type="submit">Zaproś</button>
                 </div>
             </form>
         </div>

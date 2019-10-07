@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 from django.contrib.auth.models import AnonymousUser
@@ -28,7 +28,7 @@ def user_register_form():
     return FormMock
 
 
-class TestRunnersView:
+class TestRunnerListView:
     @pytest.mark.usefixtures('transactional_db')
     def test_getting_only_coaches_runners(self, request_factory: RequestFactory):
         runner1 = User(username='runner1', is_runner=True, email='runner1@users.com')
@@ -104,7 +104,7 @@ class TestRunnersView:
 
     def test_exclude_runner_invites(self, coach: User, runner: User, request_factory: RequestFactory):
         Relation.objects.create(runner=runner, coach=coach, status=RelationStatus.INVITED_BY_RUNNER)
-        request: HttpRequest = request_factory.get(reverse('users-runners-detail', kwargs={'runner': runner.username}))
+        request: HttpRequest = request_factory.get(reverse('users-runners'))
         request.user = coach
         view = RunnerListView()
         view.request = request
@@ -112,6 +112,56 @@ class TestRunnersView:
         queryset = view.get_queryset()
 
         assert len(queryset) == 0
+
+    def test_invite(self, coach: User, runner: User, request_factory: RequestFactory):
+        request: HttpRequest = request_factory.post(reverse('users-runners'), data={'runner': runner.username})
+        request.user = coach
+        view = RunnerListView.as_view()
+
+        with patch('users.views.messages') as messages:
+            response: TemplateResponse = view(request)
+
+        assert response.status_code == 200
+        assert Relation.objects.filter(runner=runner, coach=coach).exists()
+        assert messages.succces.callled()
+
+    def test_invite_non_existing(self, coach: User, request_factory: RequestFactory):
+        request: HttpRequest = request_factory.post(reverse('users-runners'), data={'runner': 'runner'})
+        request.user = coach
+        view = RunnerListView.as_view()
+
+        with patch('users.views.messages') as messages:
+            response: TemplateResponse = view(request)
+
+        assert response.status_code == 200
+        assert not Relation.objects.filter(runner__username='runner', coach=coach).exists()
+        assert messages.warning.callled()
+
+    def test_invite_has_trainer(self, coach: User, runner: User, request_factory: RequestFactory):
+        c = User.objects.create(username='another_coach', email='another_coach@users.com', is_coach=True)
+        Relation.objects.create(runner=runner, coach=c, status=RelationStatus.ESTABLISHED)
+        request: HttpRequest = request_factory.post(reverse('users-runners'), data={'runner': 'runner'})
+        request.user = coach
+        view = RunnerListView.as_view()
+
+        with patch('users.views.messages') as messages:
+            response: TemplateResponse = view(request)
+
+        assert response.status_code == 200
+        assert not Relation.objects.filter(runner=runner, coach=coach).exists()
+        assert messages.warning.callled()
+
+    def test_invite_already_invited(self, coach: User, runner: User, request_factory: RequestFactory):
+        Relation.objects.create(runner=runner, coach=coach, status=RelationStatus.INVITED_BY_COACH)
+        request: HttpRequest = request_factory.post(reverse('users-runners'), data={'runner': runner.username})
+        request.user = coach
+        view = RunnerListView.as_view()
+
+        with patch('users.views.messages') as messages:
+            response: TemplateResponse = view(request)
+
+        assert response.status_code == 200
+        assert messages.warning.callled()
 
 
 class TestRunnerDetailView:
@@ -183,6 +233,41 @@ class TestRunnerDetailView:
 
         with pytest.raises(Http404):
             view.dispatch(request)
+
+    def test_change_nickname(self, coach: User, runner: User, relation: Relation, request_factory: RequestFactory):
+        relation.status = RelationStatus.ESTABLISHED
+        relation.save()
+        request: HttpRequest = request_factory.post(reverse('users-runners-detail', kwargs={'runner': runner.username}),
+                                                    data={'nickname': 'new_nickname'})
+        request.user = coach
+        view = RunnerDetailView.as_view()
+
+        with patch('users.views.messages') as messages:
+            view(request, runner=runner.username)
+
+        relation.refresh_from_db()
+        assert relation.nickname == 'new_nickname'
+        assert messages.succces.callled()
+
+    def test_change_nickname_already_exists(self, coach: User, runner: User, relation: Relation,
+                                            request_factory: RequestFactory):
+        another_runner = User.objects.create(username='another_runner', email='another_runner@users.com',
+                                             is_runner=True)
+        Relation.objects.create(runner=another_runner, coach=coach, status=RelationStatus.ESTABLISHED,
+                                nickname='new_nickname')
+        relation.status = RelationStatus.ESTABLISHED
+        relation.save()
+        request: HttpRequest = request_factory.post(reverse('users-runners-detail', kwargs={'runner': runner.username}),
+                                                    data={'nickname': 'new_nickname'})
+        request.user = coach
+        view = RunnerDetailView.as_view()
+
+        with patch('users.views.messages') as messages:
+            view(request, runner=runner.username)
+
+        relation.refresh_from_db()
+        assert relation.nickname is None
+        assert messages.warning.callled()
 
 
 class TestRunnerDeleteView:

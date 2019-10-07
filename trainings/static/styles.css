@@ -11,6 +11,10 @@
     color: darkgray
 }
 
+.mw-250p {
+    max-width: 250px;
+}
+
 
 main > .container {
     padding: 60px 15px 0;

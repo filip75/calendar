@@ -7,7 +7,7 @@
             {% if object.displayed_name != object.runner.username %}
                 ({{ object.runner.username }})
             {% endif %}</h3>
-        <a href="#" class="btn btn-outline-primary mb-2 my-auto">Treningi</a>
+        <a href="{% url 'trainings-list' runner=object.runner.username %}" class="btn btn-outline-info mb-2 my-auto">Treningi</a>
     </div>
     <form method="post" class="border border-outline-primary rounded p-2">
         {% csrf_token %}
