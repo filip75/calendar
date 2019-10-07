@@ -1,0 +1,34 @@
+{% extends 'trainings/base.html' %}
+{% block content %}
+    <h3>{{ object.relation.displayed_name }}</h3>
+    <div class="border rounded">
+        <table class="table">
+            <tr>
+                <td>Data</td>
+                <td class="font-weight-bold">{{ object.date|date:'j E Y - l' }}</td>
+            </tr>
+            <tr>
+                <td>Opis</td>
+                <td>{{ object.description }}</td>
+            </tr>
+            <tr>
+                <td>Wykonanie</td>
+                <td>{% if object.execution is not None %}
+                    {{ object.execution }}
+                {% else %}
+                    <i>brak</i>
+                {% endif %}</td>
+            </tr>
+            <tr>
+                <td>Widoczny od dnia</td>
+                <td>{% if object.visible_since %}
+                    {{ object.visible_since }}
+                {% else %}
+                    <i>zawsze</i>
+                {% endif %}</td>
+            </tr>
+        </table>
+    </div>
+    <a class="btn btn-outline-info mt-2"
+       href="{% url 'trainings-edit'  runner=object.relation.runner.username date=object.date %}">Edytuj</a>
+{% endblock content %}

@@ -5,13 +5,14 @@ from unittest.mock import patch
 import pytest
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied
+from django.http import Http404
 from django.template.response import TemplateResponse
 from django.test import RequestFactory
 from django.urls import reverse
 from freezegun import freeze_time
 
 from trainings.models import Training
-from trainings.views import TrainingCreateView, TrainingListView
+from trainings.views import TrainingCreateView, TrainingDetailView, TrainingListView
 from users.models import Relation, RelationStatus, User
 
 DATE = datetime.date(year=2019, month=9, day=30)
@@ -237,3 +238,40 @@ class TestTrainingListView:
 
         with pytest.raises(PermissionDenied):
             view(request)
+
+
+class TestTrainingDetailView:
+    def test_exists(self, relation: Relation, request_factory: RequestFactory):
+        Training.objects.create(relation=relation, date=SOME_MONDAY, description='description')
+        view = TrainingDetailView.as_view()
+        request = request_factory.get(
+            reverse('trainings-entry', kwargs={'runner': relation.runner.username, 'date': SOME_MONDAY}))
+        request.user = relation.coach
+
+        response = view(request, runner=relation.runner.username, date=SOME_MONDAY.strftime('%Y-%m-%d'))
+
+        assert response.status_code == 200
+
+    def test_not_exist(self, relation: Relation, request_factory: RequestFactory):
+        view = TrainingDetailView.as_view()
+        request = request_factory.get(
+            reverse('trainings-entry', kwargs={'runner': relation.runner.username, 'date': SOME_MONDAY}))
+        request.user = relation.coach
+
+        with pytest.raises(Http404):
+            view(request, runner=relation.runner.username, date=SOME_MONDAY.strftime('%Y-%m-%d'))
+
+    def test_edit_url(self, relation: Relation, request_factory: RequestFactory):
+        training = Training.objects.create(relation=relation, date=SOME_MONDAY, description='description')
+        view = TrainingDetailView.as_view()
+        request = request_factory.get(
+            reverse('trainings-entry', kwargs={'runner': relation.runner.username, 'date': SOME_MONDAY}))
+        request.user = relation.coach
+
+        with patch('trainings.views.TrainingDetailView.get_object') as get_object:
+            get_object.side_effect = lambda: training
+            response = view(request, runner=relation.runner.username, date=SOME_MONDAY.strftime('%Y-%m-%d'))
+            response = response.render()
+
+        assert reverse('trainings-entry', kwargs={'runner': relation.runner.username, 'date': SOME_MONDAY}) in str(
+            response.content)

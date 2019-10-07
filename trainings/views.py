@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
-from django.views.generic import CreateView, ListView
+from django.views.generic import CreateView, DetailView, ListView
 
 from trainings.forms import AddTrainingForm
 from trainings.models import Training
@@ -119,3 +119,24 @@ class TrainingListView(LoginRequiredMixin, UserIsCoachMixin, ListView):
             else:
                 week_trainings.append(Training(relation=self.relation, date=self.monday + i * DAY))
         return week_trainings
+
+
+class TrainingDetailView(LoginRequiredMixin, UserIsCoachMixin, DetailView):
+    template_name = 'trainings/training_detail.html'
+    model = Training
+    slug_field = 'relation__runner__username'
+    slug_url_kwarg = 'runner'
+
+    def get(self, request, *args, **kwargs):
+        date = self.kwargs.get('date')
+        if date:
+            try:
+                self.date = datetime.datetime.strptime(date, '%Y-%m-%d').date()
+            except ValueError:
+                return HttpResponseBadRequest()
+        else:
+            return HttpResponseBadRequest()
+        return super().get(request, *args, *kwargs)
+
+    def get_queryset(self):
+        return Training.objects.filter(relation__coach=self.request.user, date=self.date)
