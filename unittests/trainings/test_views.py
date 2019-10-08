@@ -3,8 +3,6 @@ from typing import List
 from unittest.mock import patch
 
 import pytest
-from django.contrib.auth.models import AnonymousUser
-from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.template.response import TemplateResponse
 from django.test import RequestFactory
@@ -13,7 +11,7 @@ from freezegun import freeze_time
 
 from trainings.models import Training
 from trainings.views import TrainingCreateView, TrainingDetailView, TrainingListView, TrainingUpdateView
-from users.models import Relation, RelationStatus, User
+from users.models import Relation, RelationStatus
 
 DATE = datetime.date(year=2019, month=9, day=30)
 SOME_MONDAY = DATE - datetime.timedelta(days=DATE.weekday())
@@ -74,41 +72,6 @@ class TestCreateTrainingView:
             response: TemplateResponse = view(request)
 
         assert response.context_data['form'].data['force'] is True
-
-    def test_login_required(self, coach: User, request_factory: RequestFactory):
-        request = request_factory.get(reverse('trainings-create'))
-        request.user = coach
-        view = TrainingCreateView.as_view()
-
-        response: TemplateResponse = view(request)
-
-        assert response.status_code == 200
-
-    def test_login_required_negative(self, request_factory: RequestFactory):
-        request = request_factory.get(reverse('trainings-create'))
-        request.user = AnonymousUser()
-        view = TrainingCreateView.as_view()
-
-        response: TemplateResponse = view(request)
-
-        assert response.status_code == 302
-
-    def test_is_coach(self, coach: User, request_factory: RequestFactory):
-        request = request_factory.get(reverse('trainings-create'))
-        request.user = coach
-        view = TrainingCreateView.as_view()
-
-        response: TemplateResponse = view(request)
-
-        assert response.status_code == 200
-
-    def test_is_coach_negative(self, runner: User, request_factory: RequestFactory):
-        request = request_factory.get(reverse('trainings-create'))
-        request.user = runner
-        view = TrainingCreateView.as_view()
-
-        with pytest.raises(PermissionDenied):
-            view(request)
 
     def test_get_runner(self, setup_db: List[Relation], request_factory: RequestFactory):
         request = request_factory.get(f"{reverse('trainings-create')}?runner={setup_db[0].runner.username}")
@@ -210,34 +173,6 @@ class TestTrainingListView:
         assert queryset[4].date == SOME_MONDAY + 4 * DAY and queryset[1].pk is None
         assert queryset[5].date == SOME_MONDAY + 5 * DAY and queryset[1].pk is None
         assert queryset[6].date == SOME_MONDAY + 6 * DAY and queryset[1].pk is None
-
-    def test_login_required(self, coach: User, relation: Relation, request_factory: RequestFactory):
-        relation.status = RelationStatus.ESTABLISHED
-        relation.save()
-        request = request_factory.get(reverse('trainings-list', kwargs={'runner': relation.runner.username}))
-        request.user = coach
-        view = TrainingListView.as_view()
-
-        response: TemplateResponse = view(request, runner=relation.runner.username)
-
-        assert response.status_code == 200
-
-    def test_login_required_negative(self, request_factory: RequestFactory):
-        request = request_factory.get(reverse('trainings-list', kwargs={'runner': 'some_runner'}))
-        request.user = AnonymousUser()
-        view = TrainingListView.as_view()
-
-        response: TemplateResponse = view(request)
-
-        assert response.status_code == 302
-
-    def test_is_coach_negative(self, runner: User, request_factory: RequestFactory):
-        request = request_factory.get(reverse('trainings-list', kwargs={'runner': 'some_runner'}))
-        request.user = runner
-        view = TrainingListView.as_view()
-
-        with pytest.raises(PermissionDenied):
-            view(request)
 
 
 class TestTrainingDetailView:
