@@ -1,7 +1,7 @@
-from unittest.mock import patch
+from typing import Type
+from unittest.mock import Mock, patch
 
 import pytest
-from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpRequest
 from django.template.response import TemplateResponse
@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.views.generic import DeleteView
 
 from users.models import Relation, RelationStatus, User
-from users.views import RunnerDeleteView, RunnerDetailView, RunnerListView
+from users.views import RunnerDeleteView, RunnerDetailView, RunnerListView, UserIsCoachMixin, UserIsRunnerMixin
 
 
 class TestRunnerListView:
@@ -55,37 +55,6 @@ class TestRunnerListView:
         response: TemplateResponse = RunnerListView.as_view()(request)
 
         assert len(response.context_data['object_list']) == 15
-
-    def test_login_required(self, coach: User, request_factory: RequestFactory):
-        request: HttpRequest = request_factory.get(reverse('users-runners'))
-        request.user = coach
-
-        response = RunnerListView.as_view()(request)
-
-        assert response.status_code == 200
-
-    def test_login_required_negative(self, request_factory: RequestFactory):
-        request: HttpRequest = request_factory.get(reverse('users-runners'))
-        request.user = AnonymousUser()
-
-        response = RunnerListView.as_view()(request)
-
-        assert response.status_code == 302
-
-    def test_allow_only_coach(self, coach: User, request_factory: RequestFactory):
-        request: HttpRequest = request_factory.get(reverse('users-runners'))
-        request.user = coach
-
-        response = RunnerListView.as_view()(request)
-
-        assert response.status_code == 200
-
-    def test_allow_only_coach_negative(self, runner: User, request_factory: RequestFactory):
-        request: HttpRequest = request_factory.get(reverse('users-runners'))
-        request.user = runner
-
-        with pytest.raises(PermissionDenied):
-            RunnerListView.as_view()(request)
 
     def test_exclude_runner_invites(self, coach: User, runner: User, request_factory: RequestFactory):
         Relation.objects.create(runner=runner, coach=coach, status=RelationStatus.INVITED_BY_RUNNER)
@@ -150,42 +119,6 @@ class TestRunnerListView:
 
 
 class TestRunnerDetailView:
-    def test_login_required(self, coach: User, request_factory: RequestFactory, relation: Relation):
-        request: HttpRequest = request_factory.get(
-            reverse('users-runners-detail', kwargs={'runner': relation.runner.username}))
-        request.user = coach
-        relation.status = RelationStatus.ESTABLISHED
-        relation.save()
-
-        response = RunnerDetailView.as_view()(request, runner=relation.runner.username)
-
-        assert response.status_code == 200
-
-    def test_login_required_negative(self, request_factory: RequestFactory):
-        request: HttpRequest = request_factory.get(reverse('users-runners-detail', kwargs={'runner': 'a'}))
-        request.user = AnonymousUser()
-
-        response = RunnerDetailView.as_view()(request, runner='a')
-
-        assert response.status_code == 302
-
-    def test_allow_only_coach(self, coach: User, request_factory: RequestFactory, relation: Relation):
-        request: HttpRequest = request_factory.get(reverse('users-runners-detail',
-                                                           kwargs={'runner': relation.runner.username}))
-        request.user = coach
-        relation.status = RelationStatus.ESTABLISHED
-        relation.save()
-
-        response = RunnerDetailView.as_view()(request, runner=relation.runner.username)
-
-        assert response.status_code == 200
-
-    def test_allow_only_coach_negative(self, runner: User, request_factory: RequestFactory):
-        request: HttpRequest = request_factory.get(reverse('users-runners-detail', kwargs={'runner': 'a'}))
-        request.user = runner
-
-        with pytest.raises(PermissionDenied):
-            RunnerDetailView.as_view()(request, runner='a')
 
     def test_only_established(self, coach: User, request_factory: RequestFactory):
         runners = []
@@ -256,39 +189,7 @@ class TestRunnerDetailView:
 
 
 class TestRunnerDeleteView:
-    def test_login_required(self, coach: User, request_factory: RequestFactory, relation: Relation):
-        request: HttpRequest = request_factory.get(
-            reverse('users-runners-delete', kwargs={'runner': relation.runner.username}))
-        request.user = coach
-
-        response = RunnerDeleteView.as_view()(request, runner=relation.runner.username)
-
-        assert response.status_code == 200
-
-    def test_login_required_negative(self, request_factory: RequestFactory):
-        request: HttpRequest = request_factory.get(reverse('users-runners-delete', kwargs={'runner': 'a'}))
-        request.user = AnonymousUser()
-
-        response = RunnerDeleteView.as_view()(request, runner='a')
-
-        assert response.status_code == 302
-
-    def test_allow_only_coach(self, coach: User, request_factory: RequestFactory, relation: Relation):
-        request: HttpRequest = request_factory.get(reverse('users-runners-delete',
-                                                           kwargs={'runner': relation.runner.username}))
-        request.user = coach
-
-        response = RunnerDeleteView.as_view()(request, runner=relation.runner.username)
-
-        assert response.status_code == 200
-
-    def test_allow_only_coach_negative(self, runner: User, request_factory: RequestFactory):
-        request: HttpRequest = request_factory.get(reverse('users-runners-delete', kwargs={'runner': 'a'}))
-        request.user = runner
-
-        with pytest.raises(PermissionDenied):
-            RunnerDeleteView.as_view()(request, runner='a')
-
+   
     def test_show_all_but_invited_by_runner(self, coach: User, request_factory: RequestFactory):
         runners = []
         for idx, status in enumerate(RelationStatus):
@@ -319,6 +220,52 @@ class TestRunnerDeleteView:
         view(request, runner=relation.runner.username)
 
         assert not Relation.objects.filter(id=relation.id).exists()
+
+
+class TestPermissionMixins:
+    @staticmethod
+    def dummy_view() -> (Mock, Type):
+        dispatch_mock = Mock()
+
+        class DummyView:
+            dispatch = dispatch_mock
+
+        return dispatch_mock, DummyView
+
+    @pytest.mark.parametrize('mixin, user', [[UserIsCoachMixin, 'coach'], [UserIsRunnerMixin, 'runner']])
+    def test_is(self, request_factory: RequestFactory, user: str, mixin: Type, request):
+        user = request.getfixturevalue(user)
+        dispatch_mock, dummy_view = self.dummy_view()
+
+        class T(mixin, dummy_view):
+            pass
+
+        t = T()
+        request: HttpRequest = request_factory.get('/')
+        request.user = user
+        t.request = request
+
+        t.dispatch(request)
+
+        dispatch_mock.assert_called()
+
+    @pytest.mark.parametrize('mixin, user', [[UserIsCoachMixin, 'runner'], [UserIsRunnerMixin, 'coach']])
+    def test_is_negative(self, request_factory: RequestFactory, user: str, mixin: Type, request):
+        user = request.getfixturevalue(user)
+        dispatch_mock, dummy_view = self.dummy_view()
+
+        class T(mixin, dummy_view):
+            pass
+
+        t = T()
+        request: HttpRequest = request_factory.get('/')
+        request.user = user
+        t.request = request
+
+        with pytest.raises(PermissionDenied):
+            t.dispatch(request)
+
+        dispatch_mock.assert_not_called()
 
 # class TestSignupView:
 #     def test_get(self, client: Client, user_register_form):
