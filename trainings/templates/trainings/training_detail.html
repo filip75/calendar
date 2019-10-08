@@ -1,6 +1,11 @@
 {% extends 'trainings/base.html' %}
 {% block content %}
-    <h3>{{ object.relation.displayed_name }}</h3>
+    <div>
+        <h3>{{ object.relation.displayed_name }}</h3>
+        <a class="btn btn-outline-info mb-2 ml-2"
+           href="{% url 'trainings-list' runner=object.relation.runner.username %}?date={{ object.date|date:'Y-m-d' }}">Powrót
+            do listy treningów</a>
+    </div>
     <div class="border rounded">
         <table class="table">
             <tr>

@@ -12,7 +12,7 @@ from django.urls import reverse
 from freezegun import freeze_time
 
 from trainings.models import Training
-from trainings.views import TrainingCreateView, TrainingDetailView, TrainingListView
+from trainings.views import TrainingCreateView, TrainingDetailView, TrainingListView, TrainingUpdateView
 from users.models import Relation, RelationStatus, User
 
 DATE = datetime.date(year=2019, month=9, day=30)
@@ -275,3 +275,38 @@ class TestTrainingDetailView:
 
         assert reverse('trainings-entry', kwargs={'runner': relation.runner.username, 'date': SOME_MONDAY}) in str(
             response.content)
+
+
+class TestTrainingUpdateView:
+    def test_initial_date(self, relation: Relation, request_factory: RequestFactory):
+        Training.objects.create(relation=relation, date=SOME_MONDAY, description='description',
+                                visible_since=SOME_MONDAY)
+        request = request_factory.get(
+            reverse('trainings-edit',
+                    kwargs={'runner': relation.runner.username, 'date': SOME_MONDAY.strftime('%Y-%m-%d')}))
+        request.user = relation.coach
+        view = TrainingUpdateView.as_view()
+
+        response = view(request, runner=relation.runner.username, date=SOME_MONDAY.strftime('%Y-%m-%d'))
+        response = response.render()
+
+        assert SOME_MONDAY.strftime('%Y-%m-%d') in str(response.content)
+
+    def test_update(self, relation: Relation, request_factory: RequestFactory):
+        training = Training.objects.create(relation=relation, date=SOME_MONDAY, description='description',
+                                           visible_since=SOME_MONDAY)
+        request = request_factory.post(
+            reverse('trainings-edit',
+                    kwargs={'runner': relation.runner.username, 'date': SOME_MONDAY.strftime('%Y-%m-%d')}),
+            data={'description': 'new_description', 'visible_since': (SOME_MONDAY + DAY).strftime('%Y-%m-%d')})
+        request.user = relation.coach
+        with patch('trainings.views.TrainingUpdateView.form_class') as form_class:
+            form_class().save().get_absolute_url.return_value = training.get_absolute_url()
+            TrainingUpdateView.form_class = form_class
+            view = TrainingUpdateView.as_view()
+
+            view(request, runner=relation.runner.username,
+                 date=SOME_MONDAY.strftime('%Y-%m-%d'))
+
+        call = form_class.call_args[1]
+        assert call['instance'] == training

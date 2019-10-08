@@ -1,12 +1,13 @@
 import datetime
+from typing import Optional
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, render
-from django.views.generic import CreateView, DetailView, ListView
+from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
-from trainings.forms import AddTrainingForm
+from trainings.forms import AddTrainingForm, UpdateTrainingForm
 from trainings.models import Training
 from users.models import Relation, RelationStatus
 from users.views import UserIsCoachMixin
@@ -23,20 +24,21 @@ def home(request):
 
 
 class TrainingCreateView(LoginRequiredMixin, UserIsCoachMixin, CreateView):
-    template_name = 'trainings/create_training.html'
+    template_name = 'trainings/training_create.html'
     model = Relation
     form_class = AddTrainingForm
 
-    def get(self, request, *args, **kwargs):
-        if request.GET.get('date'):
+    def get_initial(self):
+        initial = super().get_initial()
+        if self.request.GET.get('date'):
             try:
                 date = datetime.datetime.strptime(self.request.GET['date'], '%Y-%m-%d').date()
-                self.initial['date'] = date
+                initial['date'] = date
             except ValueError:
                 pass
-        if request.GET.get('runner'):
-            self.initial['runners'] = [request.GET['runner']]
-        return super().get(request, *args, **kwargs)
+        if self.request.GET.get('runner'):
+            initial['runners'] = [self.request.GET['runner']]
+        return initial
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -121,13 +123,12 @@ class TrainingListView(LoginRequiredMixin, UserIsCoachMixin, ListView):
         return week_trainings
 
 
-class TrainingDetailView(LoginRequiredMixin, UserIsCoachMixin, DetailView):
-    template_name = 'trainings/training_detail.html'
+class BaseEntryView:
     model = Training
     slug_field = 'relation__runner__username'
     slug_url_kwarg = 'runner'
 
-    def get(self, request, *args, **kwargs):
+    def set_date(self) -> Optional[HttpResponse]:
         date = self.kwargs.get('date')
         if date:
             try:
@@ -136,7 +137,27 @@ class TrainingDetailView(LoginRequiredMixin, UserIsCoachMixin, DetailView):
                 return HttpResponseBadRequest()
         else:
             return HttpResponseBadRequest()
+
+    def get(self, request, *args, **kwargs):
+        response = self.set_date()
+        if response:
+            return response
         return super().get(request, *args, *kwargs)
+
+    def post(self, request, *args, **kwargs):
+        response = self.set_date()
+        if response:
+            return response
+        return super().post(request, *args, *kwargs)
 
     def get_queryset(self):
         return Training.objects.filter(relation__coach=self.request.user, date=self.date)
+
+
+class TrainingDetailView(LoginRequiredMixin, UserIsCoachMixin, BaseEntryView, DetailView):
+    template_name = 'trainings/training_detail.html'
+
+
+class TrainingUpdateView(LoginRequiredMixin, UserIsCoachMixin, BaseEntryView, UpdateView):
+    template_name = 'trainings/training_update.html'
+    form_class = UpdateTrainingForm
