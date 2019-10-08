@@ -7,8 +7,9 @@ from users.models import Relation, RelationStatus, User
 
 
 class AddTrainingForm(forms.ModelForm):
-    date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date', 'class': 'mw-250p'}))
-    visible_since = forms.DateField(widget=forms.DateInput(attrs={'type': 'date', 'class': 'mw-250p'}), required=False)
+    date = forms.DateField(widget=forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date', 'class': 'mw-250p'}))
+    visible_since = forms.DateField(
+        widget=forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date', 'class': 'mw-250p'}), required=False)
     force = forms.BooleanField(required=False, widget=HiddenInput())
     runners = forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple, label=gettext('Runners'))
 
@@ -21,3 +22,12 @@ class AddTrainingForm(forms.ModelForm):
     class Meta:
         model = Training
         fields = ['date', 'description', 'visible_since', 'runners', 'force']
+
+
+class UpdateTrainingForm(forms.ModelForm):
+    visible_since = forms.DateField(
+        widget=forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date', 'class': 'mw-250p'}), required=False)
+
+    class Meta:
+        model = Training
+        fields = ['visible_since', 'description']

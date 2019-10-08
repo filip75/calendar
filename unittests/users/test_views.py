@@ -1,4 +1,4 @@
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth.models import AnonymousUser
@@ -11,21 +11,6 @@ from django.views.generic import DeleteView
 
 from users.models import Relation, RelationStatus, User
 from users.views import RunnerDeleteView, RunnerDetailView, RunnerListView
-
-
-@pytest.fixture
-def user_register_form():
-    class FormMock:
-        def __init__(self, **_):
-            pass
-
-        def is_valid(self):
-            return True
-
-        def save(self, _=True):
-            return Mock()
-
-    return FormMock
 
 
 class TestRunnerListView:

@@ -7,7 +7,7 @@ urlpatterns = [
     path('', home, name='trainings-home'),
     path('trainings/create/', views.TrainingCreateView.as_view(), name='trainings-create'),
     path('trainings/<slug:runner>/', views.TrainingListView.as_view(), name='trainings-list'),
+    path('trainings/<slug:runner>/<str:date>/edit/', views.TrainingUpdateView.as_view(), name='trainings-edit'),
     path('trainings/<slug:runner>/<str:date>/', views.TrainingDetailView.as_view(),
-         name='trainings-entry'),  # TODO date regex
-    path('trainings/<slug:runner>/<str:date>/edit/', views.TrainingDetailView.as_view(), name='trainings-edit')
+         name='trainings-entry')  # TODO date regex
 ]
