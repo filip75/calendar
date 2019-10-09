@@ -1,0 +1,23 @@
+{% extends 'trainings/base.html' %}
+{% load crispy_forms_tags %}
+{% block content %}
+    <a class="btn btn-outline-info mb-2"
+       href="{% url 'trainings-entry-runner' date=object.date|date:'Y-m-d' %}">Powrót
+        do treningu</a>
+    <form method="post" class="border border-outline-primary rounded p-2">
+        {% csrf_token %}
+        <fieldset class="form-group">
+            <legend class="border-bottom mb-2">Dodaj opis wykonania treningu</legend>
+            <table class="table">
+                <tr>
+                    <td>Data</td>
+                    <td class="font-weight-bold">{{ object.date|date:'j E Y - l' }}</td>
+                </tr>
+            </table>
+            {{ form|crispy }}
+        </fieldset>
+        <div class="form-group">
+            <button class="btn btn-outline-info w-100" type="submit">Zapisz</button>
+        </div>
+    </form>
+{% endblock content %}

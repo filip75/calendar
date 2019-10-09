@@ -15,7 +15,7 @@ class Training(models.Model):
         constraints = ['relation', 'date']
 
     def get_absolute_url(self):
-        return reverse('trainings-entry', kwargs={'runner': self.relation.runner.username, 'date': self.date})
+        return reverse('trainings-list-entry', kwargs={'runner': self.relation.runner.username, 'date': self.date})
 
     def __str__(self) -> str:
         return f'Training(' \
