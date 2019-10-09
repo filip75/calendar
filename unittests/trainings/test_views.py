@@ -1,6 +1,6 @@
 import datetime
 from typing import List
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 from django.http import Http404
@@ -10,7 +10,8 @@ from django.urls import reverse
 from freezegun import freeze_time
 
 from trainings.models import Training
-from trainings.views import TrainingCreateView, TrainingDetailView, TrainingListView, TrainingUpdateView
+from trainings.views import TrainingCreateView, TrainingListMixin, TrainingListView, TrainingListViewRunner, \
+    TrainingUpdateView, TrainingUpdateViewRunner
 from users.models import Relation, RelationStatus
 
 DATE = datetime.date(year=2019, month=9, day=30)
@@ -175,43 +176,6 @@ class TestTrainingListView:
         assert queryset[6].date == SOME_MONDAY + 6 * DAY and queryset[1].pk is None
 
 
-class TestTrainingDetailView:
-    def test_exists(self, relation: Relation, request_factory: RequestFactory):
-        Training.objects.create(relation=relation, date=SOME_MONDAY, description='description')
-        view = TrainingDetailView.as_view()
-        request = request_factory.get(
-            reverse('trainings-entry', kwargs={'runner': relation.runner.username, 'date': SOME_MONDAY}))
-        request.user = relation.coach
-
-        response = view(request, runner=relation.runner.username, date=SOME_MONDAY.strftime('%Y-%m-%d'))
-
-        assert response.status_code == 200
-
-    def test_not_exist(self, relation: Relation, request_factory: RequestFactory):
-        view = TrainingDetailView.as_view()
-        request = request_factory.get(
-            reverse('trainings-entry', kwargs={'runner': relation.runner.username, 'date': SOME_MONDAY}))
-        request.user = relation.coach
-
-        with pytest.raises(Http404):
-            view(request, runner=relation.runner.username, date=SOME_MONDAY.strftime('%Y-%m-%d'))
-
-    def test_edit_url(self, relation: Relation, request_factory: RequestFactory):
-        training = Training.objects.create(relation=relation, date=SOME_MONDAY, description='description')
-        view = TrainingDetailView.as_view()
-        request = request_factory.get(
-            reverse('trainings-entry', kwargs={'runner': relation.runner.username, 'date': SOME_MONDAY}))
-        request.user = relation.coach
-
-        with patch('trainings.views.TrainingDetailView.get_object') as get_object:
-            get_object.side_effect = lambda: training
-            response = view(request, runner=relation.runner.username, date=SOME_MONDAY.strftime('%Y-%m-%d'))
-            response = response.render()
-
-        assert reverse('trainings-entry', kwargs={'runner': relation.runner.username, 'date': SOME_MONDAY}) in str(
-            response.content)
-
-
 class TestTrainingUpdateView:
     def test_initial_date(self, relation: Relation, request_factory: RequestFactory):
         Training.objects.create(relation=relation, date=SOME_MONDAY, description='description',
@@ -240,8 +204,76 @@ class TestTrainingUpdateView:
             TrainingUpdateView.form_class = form_class
             view = TrainingUpdateView.as_view()
 
-            view(request, runner=relation.runner.username,
-                 date=SOME_MONDAY.strftime('%Y-%m-%d'))
+            with patch('trainings.views.messages'):
+                view(request, runner=relation.runner.username, date=SOME_MONDAY.strftime('%Y-%m-%d'))
 
         call = form_class.call_args[1]
         assert call['instance'] == training
+
+
+class TestTrainingListViewRunner:
+    @pytest.fixture(autouse=True)
+    def setup(self, relation: Relation, request_factory: RequestFactory):
+        relation.status = RelationStatus.ESTABLISHED
+        relation.save()
+        request = request_factory.get(
+            reverse('trainings-entry-runner', kwargs={'date': SOME_MONDAY.strftime('%Y-%m-%d')}))
+        request.user = relation.runner
+        self.view = TrainingListViewRunner()
+        self.view.setup(request, date=SOME_MONDAY.strftime('%Y-%m-%d'))
+
+    def test_get_object(self, relation: Relation):
+        training = Training.objects.create(relation=relation, description="description", date=SOME_MONDAY)
+
+        obj = self.view.get_object()
+
+        assert obj == training
+
+    def test_get_object_negative(self):
+        with pytest.raises(Http404):
+            self.view.get_object()
+
+
+class TestTrainingUpdateViewRunner:
+    @pytest.fixture(autouse=True)
+    def setup(self, relation: Relation, request_factory: RequestFactory):
+        self.training = Training.objects.create(relation=relation, description='description', date=SOME_MONDAY)
+        request = request_factory.get(
+            reverse('trainings-entry-edit-runner', kwargs={'date': SOME_MONDAY.strftime('%Y-%m-%d')}))
+        request.user = relation.runner
+        self.view = TrainingUpdateViewRunner()
+        self.view.setup(request, date=SOME_MONDAY.strftime('%Y-%m-%d'))
+
+    def test_get_object(self):
+        obj = self.view.get_object()
+
+        assert obj == self.training
+
+    def test_get_success_url(self):
+        self.view.object = self.view.get_object()
+
+        url = self.view.get_success_url()
+
+        assert url == f"/trainings/{SOME_MONDAY.strftime('%Y-%m-%d')}/"
+
+
+class TestTrainingListMixin:
+    def test_get_date(self):
+        mixin = TrainingListMixin()
+        mixin.kwargs = {'date': '2019-01-01'}
+        mixin.request = Mock()
+        mixin.request.GET = {'date': '2019-01-02'}
+
+        date = mixin.get_date()
+
+        assert date == datetime.date(2019, 1, 1)
+
+        mixin.request.GET['date'] = '2018-12-31'
+        date = mixin.get_date()
+
+        assert date == datetime.date(2019, 1, 1)
+
+        mixin.kwargs = {}
+        date = mixin.get_date()
+
+        assert date == datetime.date(2018, 12, 31)
