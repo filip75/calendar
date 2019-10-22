@@ -1,0 +1,11 @@
+{% extends 'trainings/base.html' %}
+{% block content %}
+    <h3>Zaproszenia do relacji</h3>
+    {% for relation in object_list %}
+        <div class="border rounded row my-2">
+            <p class="ml-2 my-auto">{{ relation.coach.username }}</p>
+            <a class="btn btn-outline-info m-2 ml-auto"
+               href="{% url 'trainings-invites-accept' coach=relation.coach.username %}">Zaakceptuj</a>
+        </div>
+    {% endfor %}
+{% endblock content %}

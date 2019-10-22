@@ -82,7 +82,7 @@ class SignUpView(AnonymousUserMixin, CreateView):
 
 class RunnerListView(LoginRequiredMixin, UserIsCoachMixin, FormMixin, ListView):
     model = Relation
-    template_name = 'users/runners.html'
+    template_name = 'users/coach_runners.html'
     form_class = RunnerInviteForm
     paginate_by = 15
     extra_context = {'RelationStatus': RelationStatus}
@@ -118,7 +118,7 @@ class RunnerListView(LoginRequiredMixin, UserIsCoachMixin, FormMixin, ListView):
 
 
 class RunnerDetailView(LoginRequiredMixin, UserIsCoachMixin, UpdateView):
-    template_name = 'users/runner_detail.html'
+    template_name = 'users/coach_runner_detail.html'
     model = Relation
     slug_field = "runner__username"
     slug_url_kwarg = "runner"
@@ -139,7 +139,7 @@ class RunnerDetailView(LoginRequiredMixin, UserIsCoachMixin, UpdateView):
 
 
 class RunnerDeleteView(LoginRequiredMixin, UserIsCoachMixin, DeleteView):
-    template_name = 'users/runner_delete.html'
+    template_name = 'users/coach_runner_delete.html'
     model = Relation
     slug_field = "runner__username"
     slug_url_kwarg = "runner"
@@ -151,4 +151,40 @@ class RunnerDeleteView(LoginRequiredMixin, UserIsCoachMixin, DeleteView):
 
     def post(self, request, *args, **kwargs):
         messages.info(request, gettext('Deleted successfully'))
+        return super().post(request, *args, *kwargs)
+
+
+class DoesntHaveTrainerMixin(UserPassesTestMixin):
+
+    def test_func(self):
+        return not self.request.user.has_coach()
+
+
+class InviteListView(LoginRequiredMixin, DoesntHaveTrainerMixin, ListView):
+    template_name = 'users/runner_invites_list.html'
+    model = Relation
+
+    def get_queryset(self):
+        return Relation.objects.filter(runner=self.request.user, status=RelationStatus.INVITED_BY_COACH)
+
+
+class AcceptInviteView(LoginRequiredMixin, DoesntHaveTrainerMixin, DeleteView):
+    model = Relation
+    template_name = 'users/runner_accept_invite.html'
+    slug_field = 'coach__username'
+    slug_url_kwarg = 'coach'
+    success_url = reverse_lazy('trainings-runner')
+
+    def delete(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        self.object.status = RelationStatus.ESTABLISHED
+        success_url = self.get_success_url()
+        self.object.save()
+        return HttpResponseRedirect(success_url)
+
+    def get_queryset(self):
+        return Relation.objects.filter(runner=self.request.user, status=RelationStatus.INVITED_BY_COACH)
+
+    def post(self, request, *args, **kwargs):
+        messages.info(request, gettext('Accepted successfully'))
         return super().post(request, *args, *kwargs)

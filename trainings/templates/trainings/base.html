@@ -36,6 +36,14 @@
                         <a class="nav-link" href="{% url 'trainings-create' %}">Dodaj trening</a>
                     </li>
                 {% elif user.is_runner %}
+                    <li class="nav-item active">
+                        <a class="nav-link" href="{% url 'trainings-runner' %}">Treningi</a>
+                    </li>
+                    {% if not user.has_coach %}
+                        <li class="nav-item active">
+                            <a class="nav-link" href="{% url 'trainings-invites' %}">Zaproszenia</a>
+                        </li>
+                    {% endif %}
                 {% endif %}
             </ul>
             <ul class="navbar-nav">
