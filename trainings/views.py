@@ -4,7 +4,7 @@ from typing import Optional
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import Http404, HttpResponse, HttpResponseBadRequest
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect
 from django.urls import reverse
 from django.views.generic import CreateView, ListView, UpdateView
 
@@ -20,12 +20,17 @@ WEEK = datetime.timedelta(days=7)
 def home(request):
     if not request.user.is_authenticated:
         return redirect('users-login')
-
-    return render(request, 'trainings/home.html')
+    if request.user.is_runner:
+        if request.user.has_coach:
+            return redirect('trainings-runner')
+        else:
+            return redirect('trainings-invites')
+    else:
+        return redirect('users-runners')
 
 
 class TrainingCreateView(LoginRequiredMixin, UserIsCoachMixin, CreateView):
-    template_name = 'trainings/training_create.html'
+    template_name = 'trainings/coach_training_create.html'
     model = Relation
     form_class = AddTrainingForm
 
@@ -106,7 +111,7 @@ class TrainingListMixin:
 
 
 class TrainingListView(LoginRequiredMixin, UserIsCoachMixin, TrainingListMixin, ListView):
-    template_name = 'trainings/training_list.html'
+    template_name = 'trainings/coach_training_list.html'
     model = Training
     monday = None
     previous_week = None
@@ -146,7 +151,7 @@ class TrainingListView(LoginRequiredMixin, UserIsCoachMixin, TrainingListMixin, 
 
 
 class TrainingListViewRunner(UserIsRunnerMixin, LoginRequiredMixin, TrainingListMixin, ListView):
-    template_name = 'trainings/training_list_runner.html'
+    template_name = 'trainings/runner_training_list.html'
     model = Training
     monday = None
     previous_week = None
@@ -156,7 +161,8 @@ class TrainingListViewRunner(UserIsRunnerMixin, LoginRequiredMixin, TrainingList
         sunday = self.monday + datetime.timedelta(days=6)
         queryset = Training.objects.filter(relation__runner__username=self.request.user.username,
                                            date__range=(self.monday, sunday))
-        return self.fill_week(queryset, self.request.user.runner_relation.get())
+        return self.fill_week(queryset, Relation.objects.filter(runner=self.request.user,
+                                                                status=RelationStatus.ESTABLISHED).first())
 
     def get(self, request, *args, **kwargs):
         self.get_date()
@@ -177,7 +183,7 @@ class TrainingListViewRunner(UserIsRunnerMixin, LoginRequiredMixin, TrainingList
 
 
 class TrainingUpdateView(LoginRequiredMixin, UserIsCoachMixin, UpdateView):
-    template_name = 'trainings/training_update_coach.html'
+    template_name = 'trainings/coach_training_update.html'
     form_class = UpdateTrainingForm
     model = Training
     slug_field = 'relation__runner__username'
@@ -215,7 +221,7 @@ class TrainingUpdateView(LoginRequiredMixin, UserIsCoachMixin, UpdateView):
 
 class TrainingUpdateViewRunner(LoginRequiredMixin, UserIsRunnerMixin, UpdateView):
     model = Training
-    template_name = 'trainings/training_update_runner.html'
+    template_name = 'trainings/runner_training_update.html'
     slug_field = 'date'
     slug_url_kwarg = 'date'
     fields = ['execution']
@@ -229,3 +235,5 @@ class TrainingUpdateViewRunner(LoginRequiredMixin, UserIsRunnerMixin, UpdateView
 
     def get_success_url(self):
         return reverse('trainings-entry-runner', kwargs={'date': self.object.date})
+
+

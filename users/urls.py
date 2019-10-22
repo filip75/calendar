@@ -11,5 +11,7 @@ urlpatterns = [
     path('profile/', views.RunnerProfileView.as_view(), name='users-profile'),
     path('runners/', views.RunnerListView.as_view(), name='users-runners'),
     path('runners/<slug:runner>/', views.RunnerDetailView.as_view(), name='users-runners-detail'),
-    path('runners/<slug:runner>/delete', views.RunnerDeleteView.as_view(), name='users-runners-delete')
+    path('runners/<slug:runner>/delete', views.RunnerDeleteView.as_view(), name='users-runners-delete'),
+    path('invites/', views.InviteListView.as_view(), name='trainings-invites'),
+    path('invites/<str:coach>/', views.AcceptInviteView.as_view(), name='trainings-invites-accept')
 ]

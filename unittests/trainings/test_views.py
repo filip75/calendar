@@ -1,6 +1,6 @@
 import datetime
 from typing import List
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 import pytest
 from django.http import Http404
@@ -12,7 +12,7 @@ from freezegun import freeze_time
 from trainings.models import Training
 from trainings.views import TrainingCreateView, TrainingListMixin, TrainingListView, TrainingListViewRunner, \
     TrainingUpdateView, TrainingUpdateViewRunner
-from users.models import Relation, RelationStatus
+from users.models import Relation, RelationStatus, User
 
 DATE = datetime.date(year=2019, month=9, day=30)
 SOME_MONDAY = DATE - datetime.timedelta(days=DATE.weekday())
@@ -232,6 +232,24 @@ class TestTrainingListViewRunner:
     def test_get_object_negative(self):
         with pytest.raises(Http404):
             self.view.get_object()
+
+    def test_multiple_relations(self, relation: Relation, request_factory: RequestFactory):
+        coach1 = User.objects.create(username='coach1', email='coach1@users.com', is_coach=True)
+        coach2 = User.objects.create(username='coach2', email='coach2@users.com', is_coach=True)
+        Relation.objects.create(runner=relation.runner, coach=coach1, status=RelationStatus.INVITED_BY_COACH)
+        Relation.objects.create(runner=relation.runner, coach=coach2, status=RelationStatus.INVITED_BY_COACH)
+        Training.objects.create(relation=relation, description='description', date=SOME_MONDAY)
+        request = request_factory.get(
+            reverse('trainings-entry-runner', kwargs={'date': SOME_MONDAY.strftime('%Y-%m-%d')}))
+        request.user = relation.runner
+        view = TrainingListViewRunner()
+        view.fill_week = Mock()
+        view.setup(request)
+        view.get_date()
+
+        view.get_queryset()
+
+        view.fill_week.assert_called_once_with(ANY, relation)
 
 
 class TestTrainingUpdateViewRunner:

@@ -1,0 +1,15 @@
+{% extends 'trainings/base.html' %}
+{% block content %}
+    <h3>Zaproszenia do relacji</h3>
+     <form method="post" class="border border-outline-primary rounded p-2">
+            {% csrf_token %}
+            <p>Zaakceptować zaporszenie od trenera {{ object.coach.username }}?</p>
+            <div class="form-group">
+                <button class="btn btn-outline-success" type="submit">Zaakceptuj</button>
+                <a class="btn btn-outline-info ml-3"
+                   href="{% url 'trainings-invites' %}">
+                    Anuluj
+                </a>
+            </div>
+        </form>
+{% endblock content %}

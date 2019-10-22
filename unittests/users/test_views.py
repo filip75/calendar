@@ -10,7 +10,8 @@ from django.urls import reverse
 from django.views.generic import DeleteView
 
 from users.models import Relation, RelationStatus, User
-from users.views import RunnerDeleteView, RunnerDetailView, RunnerListView, UserIsCoachMixin, UserIsRunnerMixin
+from users.views import AcceptInviteView, DoesntHaveTrainerMixin, InviteListView, RunnerDeleteView, RunnerDetailView, \
+    RunnerListView, UserIsCoachMixin, UserIsRunnerMixin
 
 
 class TestRunnerListView:
@@ -189,7 +190,6 @@ class TestRunnerDetailView:
 
 
 class TestRunnerDeleteView:
-   
     def test_show_all_but_invited_by_runner(self, coach: User, request_factory: RequestFactory):
         runners = []
         for idx, status in enumerate(RelationStatus):
@@ -222,6 +222,59 @@ class TestRunnerDeleteView:
         assert not Relation.objects.filter(id=relation.id).exists()
 
 
+class TestAcceptInviteView:
+    @pytest.fixture(autouse=True)
+    def set_relation_to_invited(self, relation: Relation):
+        relation.status = RelationStatus.INVITED_BY_COACH
+        relation.save()
+
+    def test_get_object(self, relation: Relation, request_factory: RequestFactory):
+        request = request_factory.get(reverse('trainings-invites-accept', kwargs={'coach': relation.coach.username}))
+        request.user = relation.runner
+        view = AcceptInviteView()
+        view.setup(request, coach=relation.coach.username)
+
+        obj = view.get_object()
+
+        assert obj == relation
+
+    def test_post(self, relation: Relation, request_factory: RequestFactory):
+        request = request_factory.post(reverse('trainings-invites-accept', kwargs={'coach': relation.coach.username}))
+        request.user = relation.runner
+        view = AcceptInviteView.as_view()
+        get_object_mock = Mock()
+        AcceptInviteView.get_object = get_object_mock
+
+        with patch('users.views.messages'):
+            view(request, coach=relation.coach.username)
+
+        get_object_mock().save.assert_called()
+
+
+class TestInviteListView:
+    @pytest.mark.usefixtures('transactional_db')
+    def test_get_queryset(self, request_factory: RequestFactory):
+        runner1 = User.objects.create(username='runner1', email='runner1@users.com', is_runner=True)
+        runner2 = User.objects.create(username='runner2', email='runner2@users.com', is_runner=True)
+        coach1 = User.objects.create(username='coach1', email='coach1@users.com', is_coach=True)
+        coach2 = User.objects.create(username='coach2', email='coach2@users.com', is_coach=True)
+        coach3 = User.objects.create(username='coach3', email='coach3@users.com', is_coach=True)
+        r1 = Relation.objects.create(runner=runner1, coach=coach1, status=RelationStatus.INVITED_BY_COACH)
+        Relation.objects.create(runner=runner1, coach=coach2, status=RelationStatus.INVITED_BY_RUNNER)
+        r2 = Relation.objects.create(runner=runner1, coach=coach3, status=RelationStatus.INVITED_BY_COACH)
+        Relation.objects.create(runner=runner2, coach=coach1, status=RelationStatus.INVITED_BY_COACH)
+        Relation.objects.create(runner=runner2, coach=coach2, status=RelationStatus.INVITED_BY_RUNNER)
+        Relation.objects.create(runner=runner2, coach=coach3, status=RelationStatus.INVITED_BY_COACH)
+        request = request_factory.get(reverse('trainings-invites'))
+        request.user = runner1
+        view = InviteListView()
+        view.setup(request)
+
+        queryset = view.get_queryset()
+
+        assert len(queryset) == 2 and r1 in queryset and r2 in queryset
+
+
 class TestPermissionMixins:
     @staticmethod
     def dummy_view() -> (Mock, Type):
@@ -231,6 +284,29 @@ class TestPermissionMixins:
             dispatch = dispatch_mock
 
         return dispatch_mock, DummyView
+
+    def test_doesnt_have_trainer(self, relation: Relation, request_factory: RequestFactory):
+        relation.status = RelationStatus.INVITED_BY_COACH
+        relation.save()
+        dispatch_mock, dummy_view = self.dummy_view()
+
+        class T(DoesntHaveTrainerMixin, dummy_view):
+            pass
+
+        t = T()
+        request: HttpRequest = request_factory.get('/')
+        request.user = relation.runner
+        t.request = request
+
+        t.dispatch(request)
+
+        dispatch_mock.assert_called()
+
+        relation.status = RelationStatus.ESTABLISHED
+        relation.save()
+
+        with pytest.raises(PermissionDenied):
+            t.dispatch(request)
 
     @pytest.mark.parametrize('mixin, user', [[UserIsCoachMixin, 'coach'], [UserIsRunnerMixin, 'runner']])
     def test_is(self, request_factory: RequestFactory, user: str, mixin: Type, request):
