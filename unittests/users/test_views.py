@@ -2,6 +2,7 @@ from typing import Type
 from unittest.mock import Mock, patch
 
 import pytest
+from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpRequest
 from django.template.response import TemplateResponse
@@ -9,9 +10,9 @@ from django.test import RequestFactory
 from django.urls import reverse
 from django.views.generic import DeleteView
 
-from users.models import Relation, RelationStatus, User
+from users.models import Relation, RelationStatus, User, UserType
 from users.views import AcceptInviteView, DoesntHaveTrainerMixin, InviteListView, RunnerDeleteView, RunnerDetailView, \
-    RunnerListView, UserIsCoachMixin, UserIsRunnerMixin
+    RunnerListView, SignUpView, UserIsCoachMixin, UserIsRunnerMixin
 
 
 class TestRunnerListView:
@@ -343,22 +344,22 @@ class TestPermissionMixins:
 
         dispatch_mock.assert_not_called()
 
-# class TestSignupView:
-#     def test_get(self, client: Client, user_register_form):
-#         response = client.get('/signup/')
-#
-#         assert 200 == response.status_code
-#         assert '<form' in str(response.content)
-#
-#     def test_post(self, user_register_form, request_factory: RequestFactory):
-#         request: HttpRequest = request_factory.post(reverse('users-signup'), {})
-#
-#         # is_valid.is_valid = Mock(side_effect=lambda: True)
-#         v = SignUpView.as_view(form_class=user_register_form)
-#
-#         response = v(request)
-#         # response = client.post('/signup/', data={})
-#
-#         # assert is_valid.is_valid.assert_called()
-#         # assert user_register_form.is_valid
-#         assert response.status_code == 201
+
+class TestSignupView:
+    @pytest.mark.usefixtures('transactional_db')
+    def test_has_token(self, request_factory: RequestFactory):
+        request = request_factory.post(reverse('users-signup'),
+                                       data={'username': 'runner1',
+                                             'email': 'runner1@users.com',
+                                             'password1': 'testing321',
+                                             'password2': 'testing321',
+                                             'user_type': UserType.RUNNER.value
+                                             })
+        request.user = AnonymousUser()
+        view = SignUpView.as_view()
+
+        with patch('users.views.messages'):
+            view(request)
+
+        runner = User.objects.get(username='runner1')
+        assert hasattr(runner, 'auth_token')
