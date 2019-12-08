@@ -70,8 +70,7 @@ class SignUpView(AnonymousUserMixin, CreateView):
     redirect_url = reverse_lazy('trainings-home')
 
     def form_valid(self, form):
-        user = form.save()
-        # create_token(TokenModel, user, None)
+        form.save()
         messages.success(self.request, 'Account created')
         return redirect('users-login')
 
