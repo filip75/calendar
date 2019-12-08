@@ -37,25 +37,26 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    'rest_framework',
-    'rest_framework.authtoken',
-    'rest_auth',
+    'crispy_forms',
     'django.contrib.sites',
     'allauth',
     'allauth.account',
+    'allauth.socialaccount',
+    'rest_auth',
     'rest_auth.registration',
-    'crispy_forms',
+    'rest_framework',
+    'rest_framework.authtoken',
 
     'users.apps.UsersConfig',
     'trainings.apps.TrainingsConfig',
 ]
 
-
-
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework.authentication.TokenAuthentication',
     ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
+    'PAGE_SIZE': 5
 }
 
 MIDDLEWARE = [

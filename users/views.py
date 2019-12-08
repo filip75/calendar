@@ -11,8 +11,6 @@ from django.urls import reverse_lazy
 from django.utils.translation import gettext
 from django.views.generic import CreateView, ListView
 from django.views.generic.edit import DeleteView, FormMixin, UpdateView
-from rest_auth.app_settings import create_token
-from rest_auth.models import TokenModel
 
 from training_calendar.forms import MultipleSetPasswordForm
 from training_calendar.views import MultipleFormView
@@ -72,8 +70,7 @@ class SignUpView(AnonymousUserMixin, CreateView):
     redirect_url = reverse_lazy('trainings-home')
 
     def form_valid(self, form):
-        user = form.save()
-        create_token(TokenModel, user, None)
+        form.save()
         messages.success(self.request, 'Account created')
         return redirect('users-login')
 

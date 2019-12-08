@@ -1,14 +1,25 @@
 from typing import List
 
 import pytest
+from django.contrib.auth.hashers import make_password
 from django.test import Client, RequestFactory
+from rest_framework.test import APIRequestFactory
 
 from users.models import Relation, RelationStatus, User
+
+PASSWORD = 'testing321'
+RUNNER_USERNAME = 'runner'
+COACH_USERNAME = 'coach'
 
 
 @pytest.fixture
 def request_factory() -> RequestFactory:
     return RequestFactory()
+
+
+@pytest.fixture
+def api_factory() -> APIRequestFactory:
+    return APIRequestFactory()
 
 
 @pytest.fixture
@@ -18,16 +29,18 @@ def client() -> Client:
 
 @pytest.fixture
 def runner(transactional_db) -> User:
-    user = User(username='runner', email='runner@users.com')
+    user = User(username=RUNNER_USERNAME, email='runner@users.com')
     user.is_runner = True
+    user.password = make_password(PASSWORD)
     user.save()
     return user
 
 
 @pytest.fixture
 def coach(transactional_db) -> User:
-    user = User(username='coach', email='coach@users.com')
+    user = User(username=COACH_USERNAME, email='coach@users.com')
     user.is_coach = True
+    user.password = make_password(PASSWORD)
     user.save()
     return user
 
