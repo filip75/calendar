@@ -2,7 +2,6 @@ from typing import Type
 from unittest.mock import Mock, patch
 
 import pytest
-from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpRequest
 from django.template.response import TemplateResponse
@@ -10,9 +9,9 @@ from django.test import RequestFactory
 from django.urls import reverse
 from django.views.generic import DeleteView
 
-from users.models import Relation, RelationStatus, User, UserType
+from users.models import Relation, RelationStatus, User
 from users.views import AcceptInviteView, DoesntHaveTrainerMixin, InviteListView, RunnerDeleteView, RunnerDetailView, \
-    RunnerListView, SignUpView, UserIsCoachMixin, UserIsRunnerMixin
+    RunnerListView, UserIsCoachMixin, UserIsRunnerMixin
 
 
 class TestRunnerListView:
@@ -230,7 +229,7 @@ class TestAcceptInviteView:
         relation.save()
 
     def test_get_object(self, relation: Relation, request_factory: RequestFactory):
-        request = request_factory.get(reverse('trainings-invites-accept', kwargs={'coach': relation.coach.username}))
+        request = request_factory.get(reverse('users-invites-accept', kwargs={'coach': relation.coach.username}))
         request.user = relation.runner
         view = AcceptInviteView()
         view.setup(request, coach=relation.coach.username)
@@ -240,7 +239,7 @@ class TestAcceptInviteView:
         assert obj == relation
 
     def test_post(self, relation: Relation, request_factory: RequestFactory):
-        request = request_factory.post(reverse('trainings-invites-accept', kwargs={'coach': relation.coach.username}))
+        request = request_factory.post(reverse('users-invites-accept', kwargs={'coach': relation.coach.username}))
         request.user = relation.runner
         view = AcceptInviteView.as_view()
         get_object_mock = Mock()
@@ -266,7 +265,7 @@ class TestInviteListView:
         Relation.objects.create(runner=runner2, coach=coach1, status=RelationStatus.INVITED_BY_COACH)
         Relation.objects.create(runner=runner2, coach=coach2, status=RelationStatus.INVITED_BY_RUNNER)
         Relation.objects.create(runner=runner2, coach=coach3, status=RelationStatus.INVITED_BY_COACH)
-        request = request_factory.get(reverse('trainings-invites'))
+        request = request_factory.get(reverse('users-invites'))
         request.user = runner1
         view = InviteListView()
         view.setup(request)
@@ -343,23 +342,3 @@ class TestPermissionMixins:
             t.dispatch(request)
 
         dispatch_mock.assert_not_called()
-
-
-class TestSignupView:
-    @pytest.mark.usefixtures('transactional_db')
-    def test_has_token(self, request_factory: RequestFactory):
-        request = request_factory.post(reverse('users-signup'),
-                                       data={'username': 'runner1',
-                                             'email': 'runner1@users.com',
-                                             'password1': 'testing321',
-                                             'password2': 'testing321',
-                                             'user_type': UserType.RUNNER.value
-                                             })
-        request.user = AnonymousUser()
-        view = SignUpView.as_view()
-
-        with patch('users.views.messages'):
-            view(request)
-
-        runner = User.objects.get(username='runner1')
-        assert hasattr(runner, 'auth_token')
