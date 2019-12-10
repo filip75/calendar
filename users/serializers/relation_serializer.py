@@ -6,17 +6,18 @@ from users.models import Relation, RelationStatus, User
 
 
 class RelationSerializer(serializers.HyperlinkedModelSerializer):
-    details = serializers.HyperlinkedIdentityField(view_name='users-api-runner-profile')
-    trainings = serializers.HyperlinkedIdentityField(view_name='users-api-runner-trainings')
+    url = serializers.HyperlinkedIdentityField(view_name='users-api-runner-profile')
+    trainings = serializers.HyperlinkedRelatedField(view_name='users-api-runner-trainings', read_only=True,
+                                                    source='*')
     runner_name = serializers.CharField(source='runner.username', read_only=True)
     runner = serializers.CharField(max_length=150, write_only=True)
 
     class Meta:
         model = Relation
         fields = \
-            ['runner_name', 'details', 'status', 'trainings', 'nickname', 'runner']
+            ['runner_name', 'url', 'status', 'trainings', 'nickname', 'runner']
         read_only_fields = \
-            ['runner_name', 'details', 'status', 'trainings']
+            ['runner_name', 'url', 'status', 'trainings']
 
     def validate_runner(self, value: str) -> str:
         try:

@@ -13,8 +13,8 @@ class TestRelationSerializer:
         serializer = RelationSerializer(instance=relation, context={'request': request})
 
         assert serializer.data['runner_name'] == relation.runner.username
-        assert serializer.data['details'] == 'http://testserver' + reverse('users-api-runner-profile',
-                                                                           kwargs={'pk': relation.id})
+        assert serializer.data['url'] == 'http://testserver' + reverse('users-api-runner-profile',
+                                                                       kwargs={'pk': relation.id})
         assert serializer.data['status'] == relation.status
         assert serializer.data['trainings'] == 'http://testserver' + reverse('users-api-runner-trainings',
                                                                              kwargs={'pk': relation.id})
