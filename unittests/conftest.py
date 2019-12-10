@@ -52,9 +52,9 @@ def relation(runner: User, coach: User):
     return relation
 
 
-@pytest.fixture()
+@pytest.fixture
 def setup_db(transactional_db) -> List[Relation]:
-    coach = User.objects.create(username='coach', email='coach@users.com', is_coach=True)
+    coach = User.objects.create(username='coach1', email='coach1@users.com', is_coach=True)
     runner1 = User.objects.create(username='runner1', email='runner1@users.com', is_runner=True)
     runner2 = User.objects.create(username='runner2', email='runner2@users.com', is_runner=True)
     relation1 = Relation.objects.create(coach=coach, runner=runner1, status=RelationStatus.ESTABLISHED)

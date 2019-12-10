@@ -81,9 +81,10 @@ class TestRunnerDetailView:
         request.user = relation.coach
         RunnerDetailView.permission_classes = []
         serializer_mock = Mock()
-        RunnerDetailView.get_serializer_class = serializer_mock
+        serializer_mock.is_valid.return_value = True
+        RunnerDetailView.serializer_class = serializer_mock
         view = RunnerDetailView.as_view()
 
-        view(request, pk=relation.runner_id)
+        view(request, pk=relation.pk)
 
-        serializer_mock()().save.assert_called()
+        serializer_mock().save.assert_called()
